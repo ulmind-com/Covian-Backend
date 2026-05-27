@@ -1,0 +1,48 @@
+import uuid
+from datetime import datetime
+from typing import Optional
+from pydantic import BaseModel, EmailStr, Field
+
+
+# Base schemas shared by multiple operations
+class UserBase(BaseModel):
+    email: EmailStr = Field(..., description="The unique email address of the user")
+    name: str = Field(..., min_length=1, max_length=100, description="The name of the user")
+    is_active: bool = Field(True, description="Whether the user account is active")
+
+
+# Schema for registering a new user
+class UserCreate(UserBase):
+    password: str = Field(..., min_length=8, max_length=100, description="User password (min 8 characters)")
+
+
+# Schema for updating user data
+class UserUpdate(BaseModel):
+    email: Optional[EmailStr] = Field(None, description="New email address")
+    name: Optional[str] = Field(None, min_length=1, max_length=100, description="New name")
+    password: Optional[str] = Field(None, min_length=8, max_length=100, description="New password")
+    is_active: Optional[bool] = Field(None, description="Update active status")
+
+
+# Schema returned in API responses
+class UserResponse(UserBase):
+    id: uuid.UUID
+    created_at: datetime
+
+    model_config = {
+        "from_attributes": True  # Enables compatibility with SQLAlchemy models (ORM mode in v2)
+    }
+
+
+# Schema for JWT Authentication Tokens
+class Token(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
+# Schema representing decoded token payload
+class TokenPayload(BaseModel):
+    sub: str
+    type: str
+    exp: datetime
