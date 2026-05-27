@@ -1,7 +1,7 @@
-# ==============================================================================
-# STAGE 1: Builder stage using Astral UV for ultra-fast dependency installation
-# ==============================================================================
-FROM ghcr.io/astral-sh/uv:python3.11-slim AS builder
+FROM python:3.11-slim AS builder
+
+# Copy uv binary from official image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Compile Python bytecode for faster startup times inside the container
 ENV UV_COMPILE_BYTECODE=1
