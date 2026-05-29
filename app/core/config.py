@@ -1,5 +1,6 @@
 import logging
 from typing import Any, Dict, List, Union
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Configure basic logging format
@@ -32,9 +33,10 @@ class Settings(BaseSettings):
             return v
         raise ValueError(v)
 
-    # Database
+    # Database & Redis
     MONGODB_URL: str = "mongodb+srv://samiran:samiran2004@cluster2004.eowyegm.mongodb.net/project_form_prem"
     MONGODB_DB_NAME: str = "project_form_prem"
+    REDIS_URL: str = "redis://localhost:6379/0"
 
     # JWT Security
     # In production, change these to highly secure keys!

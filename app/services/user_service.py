@@ -1,24 +1,21 @@
-import uuid
-from typing import Optional
+from typing import Optional, List
 from fastapi import HTTPException, status
-from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.security import get_password_hash, verify_password
-from app.db.models.user import User
+from app.models.user import User
 from app.repositories.user_repo import user_repo
 from app.schemas.user import UserCreate, UserUpdate
-
 
 class UserService:
     """
     Business logic layer for User actions.
-    Combines security operations with the database repository.
+    Combines security operations with the Beanie database repository.
     """
 
-    async def register(self, db: AsyncIOMotorDatabase, *, user_in: UserCreate) -> User:
+    async def register(self, *, user_in: UserCreate) -> User:
         """
         Register a new user after verifying that the email is unique.
         """
-        existing_user = await user_repo.get_by_email(db, email=user_in.email)
+        existing_user = await user_repo.get_by_email(email=user_in.email)
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -27,18 +24,16 @@ class UserService:
 
         hashed_password = get_password_hash(user_in.password)
         db_user = await user_repo.create(
-            db, user_in=user_in, hashed_password=hashed_password
+            user_in=user_in, hashed_password=hashed_password
         )
         return db_user
 
-    async def authenticate(
-        self, db: AsyncIOMotorDatabase, *, email: str, password: str
-    ) -> Optional[User]:
+    async def authenticate(self, *, email: str, password: str) -> Optional[User]:
         """
         Authenticate a user by email and password.
         Returns the User object if authentication is successful, otherwise None.
         """
-        user = await user_repo.get_by_email(db, email=email)
+        user = await user_repo.get_by_email(email=email)
         if not user:
             return None
         
@@ -47,15 +42,13 @@ class UserService:
             
         return user
 
-    async def get_by_id(self, db: AsyncIOMotorDatabase, user_id: uuid.UUID) -> Optional[User]:
+    async def get_by_id(self, user_id: str) -> Optional[User]:
         """
         Retrieve a user record by ID.
         """
-        return await user_repo.get_by_id(db, user_id)
+        return await user_repo.get_by_id(user_id)
 
-    async def update(
-        self, db: AsyncIOMotorDatabase, *, db_user: User, user_in: UserUpdate
-    ) -> User:
+    async def update(self, *, db_user: User, user_in: UserUpdate) -> User:
         """
         Update user details and hash the new password if one is provided.
         """
@@ -65,8 +58,6 @@ class UserService:
             db_user.hashed_password = get_password_hash(update_data["password"])
             del update_data["password"]
 
-        return await user_repo.update(db, db_user=db_user, user_in=update_data)
+        return await user_repo.update(db_user=db_user, user_in=update_data)
 
-
-# Instantiate user service to be imported elsewhere
 user_service = UserService()

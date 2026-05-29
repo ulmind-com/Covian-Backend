@@ -5,6 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.router import api_router
 from app.core.config import settings
 
+from app.db.mongo import init_db
+
 logger = logging.getLogger("app.main")
 
 
@@ -16,7 +18,13 @@ async def lifespan(app: FastAPI):
     """
     logger.info("Starting up the FastAPI application...")
     logger.info(f"Environment: {settings.ENVIRONMENT}")
-    logger.info(f"Database connection URI is configured.")
+    logger.info(f"Initializing Beanie ODM with MongoDB client...")
+    try:
+        await init_db()
+        logger.info("Successfully connected to MongoDB and initialized Beanie ODM.")
+    except Exception as e:
+        logger.error(f"Failed to connect to MongoDB / init Beanie: {e}")
+        raise e
     yield
     logger.info("Shutting down the FastAPI application...")
 

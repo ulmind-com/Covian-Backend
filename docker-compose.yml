@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # MongoDB primary data store
   db:
     image: mongo:7.0
     container_name: corevita_mongo_db
@@ -15,6 +16,20 @@ services:
       timeout: 5s
       retries: 5
 
+  # Redis caching & arq background task queueing
+  redis:
+    image: redis:7-alpine
+    container_name: corevita_redis_queue
+    restart: always
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # FastAPI web server endpoint
   web:
     build:
       context: .
@@ -26,12 +41,35 @@ services:
     environment:
       - MONGODB_URL=mongodb://db:27017/project_form_prem
       - MONGODB_DB_NAME=project_form_prem
+      - REDIS_URL=redis://redis:6379/0
       - ENVIRONMENT=production
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
-      # Mount app folder during development to hot-reload code changes
+      - ./app:/app/app
+
+  # Asynchronous task runner / background email & reports worker
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: corevita_arq_worker
+    restart: always
+    command: ["arq", "app.worker.WorkerSettings"]
+    environment:
+      - MONGODB_URL=mongodb://db:27017/project_form_prem
+      - MONGODB_DB_NAME=project_form_prem
+      - REDIS_URL=redis://redis:6379/0
+      - ENVIRONMENT=production
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
       - ./app:/app/app
 
 volumes:

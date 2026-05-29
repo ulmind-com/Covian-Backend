@@ -1,55 +1,41 @@
-import uuid
-from typing import Optional
-from motor.motor_asyncio import AsyncIOMotorDatabase
-from app.db.models.user import User
+from typing import Optional, List
+from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
-
 
 class UserRepository:
     """
-    Database query repository for the User model.
-    Handles CRUD operations directly using Motor async connections.
+    Database query repository for the User model using Beanie ODM.
     """
 
-    async def get_by_id(self, db: AsyncIOMotorDatabase, user_id: uuid.UUID) -> Optional[User]:
+    async def get_by_id(self, user_id: str) -> Optional[User]:
         """
-        Fetch a user by their unique UUID.
+        Fetch a user by their unique string ID.
         """
-        user_dict = await db["users"].find_one({"id": str(user_id)})
-        if user_dict:
-            return User(**user_dict)
-        return None
+        return await User.get(user_id)
 
-    async def get_by_email(self, db: AsyncIOMotorDatabase, email: str) -> Optional[User]:
+    async def get_by_email(self, email: str) -> Optional[User]:
         """
         Fetch a user by their email address.
         """
-        user_dict = await db["users"].find_one({"email": email})
-        if user_dict:
-            return User(**user_dict)
-        return None
+        return await User.find_one(User.email == email)
 
-    async def create(self, db: AsyncIOMotorDatabase, *, user_in: UserCreate, hashed_password: str) -> User:
+    async def create(self, *, user_in: UserCreate, hashed_password: str) -> User:
         """
-        Create a new user record in the database.
+        Create a new user document in the database.
         """
         db_user = User(
             email=user_in.email,
             name=user_in.name,
             hashed_password=hashed_password,
+            role=user_in.role,
             is_active=user_in.is_active,
         )
-        user_dict = db_user.model_dump()
-        user_dict["id"] = str(db_user.id)  # Store UUID as standard string
-        
-        await db["users"].insert_one(user_dict)
+        await db_user.insert()
         return db_user
 
-    async def update(
-        self, db: AsyncIOMotorDatabase, *, db_user: User, user_in: UserUpdate | dict
-    ) -> User:
+    async def update(self, *, db_user: User, user_in: UserUpdate | dict) -> User:
         """
-        Update an existing user record.
+        Update an existing user document.
         """
         if isinstance(user_in, dict):
             update_data = user_in
@@ -61,12 +47,13 @@ class UserRepository:
                 continue
             setattr(db_user, field, value)
 
-        user_dict = db_user.model_dump()
-        user_dict["id"] = str(db_user.id)
-        
-        await db["users"].replace_one({"id": str(db_user.id)}, user_dict)
+        await db_user.save()
         return db_user
 
+    async def get_multi(self, *, skip: int = 0, limit: int = 100) -> List[User]:
+        """
+        Retrieve list of users with pagination.
+        """
+        return await User.find_all().skip(skip).limit(limit).to_list()
 
-# Instantiate user repository to be imported elsewhere
 user_repo = UserRepository()
