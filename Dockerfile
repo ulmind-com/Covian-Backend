@@ -13,11 +13,12 @@ WORKDIR /app
 COPY pyproject.toml /app/
 
 # Sync virtualenv and install dependencies
-# We use uv to create a virtual environment and populate it from pyproject.toml
+# We compile pyproject.toml into a standard requirements format, then install it
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv venv /app/.venv && \
     . /app/.venv/bin/activate && \
-    uv pip install -r pyproject.toml
+    uv pip compile pyproject.toml -o requirements.txt && \
+    uv pip install -r requirements.txt
 
 
 # ==============================================================================
@@ -42,5 +43,5 @@ COPY app /app/app
 # Expose default FastAPI port
 EXPOSE 8000
 
-# Run FastAPI app with high performance uvicorn production config
+# Run FastAPI app with uvicorn production config
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
