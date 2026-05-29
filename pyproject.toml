@@ -1,15 +1,13 @@
 [project]
-name = "project-for-prem-backend"
+name = "corevita-advisory-backend"
 version = "0.1.0"
-description = "A production-ready, highly scalable Python FastAPI backend starter template using clean architecture."
+description = "Production-ready async MongoDB backend service for CoreVita Advisory Private Limited."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.110.0",
     "uvicorn[standard]>=0.28.0",
-    "sqlalchemy>=2.0.28",
-    "asyncpg>=0.29.0",
-    "alembic>=1.13.1",
+    "motor>=3.3.0",
     "pydantic-settings>=2.2.1",
     "pydantic>=2.6.4",
     "passlib[bcrypt]>=1.7.4",

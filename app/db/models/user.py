@@ -1,47 +1,26 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import String, Boolean, DateTime
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
-from app.db.base_class import Base
+from pydantic import BaseModel, Field
 
-
-class User(Base):
+class User(BaseModel):
     """
-    SQLAlchemy User model representing the 'users' table in the database.
+    User model representing a user document in MongoDB.
     """
-    __tablename__ = "users"
+    id: uuid.UUID = Field(default_factory=uuid.uuid4)
+    name: str
+    email: str
+    hashed_password: str
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-        index=True,
-    )
-    name: Mapped[str] = mapped_column(
-        String(100),
-        nullable=False,
-    )
-    email: Mapped[str] = mapped_column(
-        String(255),
-        unique=True,
-        index=True,
-        nullable=False,
-    )
-    hashed_password: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
-    )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean,
-        default=True,
-        nullable=False,
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        nullable=False,
-    )
-
-    def __repr__(self) -> str:
-        return f"<User {self.email} (active={self.is_active})>"
+    class Config:
+        populate_by_name = True
+        json_schema_extra = {
+            "example": {
+                "id": "123e4567-e89b-12d3-a456-426614174000",
+                "email": "user@example.com",
+                "name": "Jane Doe",
+                "is_active": True,
+                "created_at": "2026-05-29T19:49:18Z"
+            }
+        }

@@ -2,7 +2,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.api.deps import get_db
 from app.core.security import create_access_token, create_refresh_token, verify_token
 from app.schemas.user import Token, UserCreate, UserResponse
@@ -18,7 +18,7 @@ class RefreshTokenRequest(BaseModel):
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     user_in: UserCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncIOMotorDatabase = Depends(get_db)
 ) -> Any:
     """
     Register a new user in the system.
@@ -29,7 +29,7 @@ async def register(
 
 @router.post("/login", response_model=Token)
 async def login(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncIOMotorDatabase = Depends(get_db),
     form_data: OAuth2PasswordRequestForm = Depends()
 ) -> Any:
     """
@@ -61,7 +61,7 @@ async def login(
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
     request: RefreshTokenRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncIOMotorDatabase = Depends(get_db)
 ) -> Any:
     """
     Receive a valid refresh token and obtain a new set of access & refresh tokens.

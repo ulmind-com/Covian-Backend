@@ -2,19 +2,15 @@ version: '3.8'
 
 services:
   db:
-    image: postgres:16-alpine
-    container_name: premium_postgres_db
+    image: mongo:7.0
+    container_name: corevita_mongo_db
     restart: always
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: app
     ports:
-      - "5432:5432"
+      - "27017:27017"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mongo_data:/data/db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d app"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -23,22 +19,20 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: premium_fastapi_web
+    container_name: corevita_fastapi_web
     restart: always
     ports:
       - "8000:8000"
     environment:
-      - POSTGRES_SERVER=db  # Override server host to point to the docker container service 'db'
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=app
+      - MONGODB_URL=mongodb://db:27017/project_form_prem
+      - MONGODB_DB_NAME=project_form_prem
       - ENVIRONMENT=production
     depends_on:
       db:
         condition: service_healthy
     volumes:
-      # Optional: mount app during local development to hot reload code changes
+      # Mount app folder during development to hot-reload code changes
       - ./app:/app/app
 
 volumes:
-  postgres_data:
+  mongo_data:

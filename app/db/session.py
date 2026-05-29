@@ -1,41 +1,17 @@
 from typing import AsyncGenerator
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from app.core.config import settings
 
-# Create the async engine
-# echo=True prints out all SQL queries, which is useful in development but can be disabled in production
-engine = create_async_engine(
-    settings.SQLALCHEMY_DATABASE_URI,
-    echo=settings.ENVIRONMENT == "development",
-    future=True,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
-    connect_args={"ssl": False},
-)
+# Create the motor client globally to reuse connection pooling
+client = AsyncIOMotorClient(settings.MONGODB_URL)
 
-# Async session maker
-AsyncSessionLocal = sessionmaker(
-    bind=engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autocommit=False,
-    autoflush=False,
-)
-
-
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_db() -> AsyncGenerator[AsyncIOMotorDatabase, None]:
     """
-    Dependency generator for database sessions.
-    Ensures the session is closed after the request completes.
+    Dependency generator for MongoDB database.
+    Yields the database instance.
     """
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+    db = client[settings.MONGODB_DB_NAME]
+    try:
+        yield db
+    finally:
+        pass

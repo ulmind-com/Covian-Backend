@@ -38,8 +38,6 @@ ENV PYTHONUNBUFFERED=1
 
 # Copy application files
 COPY app /app/app
-COPY migrations /app/migrations
-COPY alembic.ini /app/alembic.ini
 
 # Expose default FastAPI port
 EXPOSE 8000

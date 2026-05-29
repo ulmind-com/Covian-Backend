@@ -1,7 +1,7 @@
 import uuid
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.api.deps import get_current_active_user, get_db
 from app.db.models.user import User
 from app.schemas.user import UserResponse
@@ -23,7 +23,7 @@ async def get_current_user_info(
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user_by_id(
     user_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncIOMotorDatabase = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ) -> Any:
     """

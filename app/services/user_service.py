@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 from fastapi import HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.security import get_password_hash, verify_password
 from app.db.models.user import User
 from app.repositories.user_repo import user_repo
@@ -14,7 +14,7 @@ class UserService:
     Combines security operations with the database repository.
     """
 
-    async def register(self, db: AsyncSession, *, user_in: UserCreate) -> User:
+    async def register(self, db: AsyncIOMotorDatabase, *, user_in: UserCreate) -> User:
         """
         Register a new user after verifying that the email is unique.
         """
@@ -32,7 +32,7 @@ class UserService:
         return db_user
 
     async def authenticate(
-        self, db: AsyncSession, *, email: str, password: str
+        self, db: AsyncIOMotorDatabase, *, email: str, password: str
     ) -> Optional[User]:
         """
         Authenticate a user by email and password.
@@ -47,14 +47,14 @@ class UserService:
             
         return user
 
-    async def get_by_id(self, db: AsyncSession, user_id: uuid.UUID) -> Optional[User]:
+    async def get_by_id(self, db: AsyncIOMotorDatabase, user_id: uuid.UUID) -> Optional[User]:
         """
         Retrieve a user record by ID.
         """
         return await user_repo.get_by_id(db, user_id)
 
     async def update(
-        self, db: AsyncSession, *, db_user: User, user_in: UserUpdate
+        self, db: AsyncIOMotorDatabase, *, db_user: User, user_in: UserUpdate
     ) -> User:
         """
         Update user details and hash the new password if one is provided.

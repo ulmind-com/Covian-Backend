@@ -1,24 +1,23 @@
-# 🚀 Premium FastAPI Backend Starter Template
+# 🚀 CoreVita Advisory Private Limited Backend
 
-A scalable, production-grade, and enterprise-ready backend starter template built with **Python 3.11+**, **FastAPI**, **SQLAlchemy 2.0**, and **Astral uv**. It follows **Clean Architecture** patterns to enforce strict separation of concerns, making it highly modular, maintainable, and ready for real client work.
+A scalable, production-grade, and enterprise-ready async MongoDB backend built with **Python 3.11+**, **FastAPI**, **MongoDB (Motor)**, and **Astral uv**. It follows **Clean Architecture** patterns to enforce strict separation of concerns, making it highly modular, maintainable, and customized for CoreVita Advisory Private Limited.
 
 ---
 
 ## 🌟 Key Features
 
 *   **⚡ Speed & Modernity**: Managed using **Astral uv**—the ultra-fast Python package installer and resolver.
-*   **🏗️ Clean Architecture**: Clear separation into API routing, business logic Services, database query Repositories, Pydantic schemas, and SQLAlchemy database models.
+*   **🏗️ Clean Architecture**: Clear separation into API routing, business logic Services, database query Repositories, Pydantic schemas, and MongoDB models.
 *   **🔒 Complete Security**:
     *   JWT Authentication with dual-token mechanics (**Access Tokens** and **Refresh Tokens**).
     *   Robust password hashing using the `bcrypt` algorithm.
     *   FastAPI dependency-injection-secured endpoint access.
 *   **🗄️ Database Operations**:
-    *   **SQLAlchemy 2.0** async engine with modern type annotations (`Mapped`, `mapped_column`).
-    *   Async database driver (`asyncpg`) for native asynchronous PostgreSQL operations.
-    *   Full **Alembic** migrations setup configured dynamically using the app's settings.
-*   **🐳 Containerized Orchestration**: Production-ready, multi-stage `Dockerfile` and `docker-compose.yml` to spin up PostgreSQL and the API.
-*   **🧪 Robust Testing**: Configured with `pytest` and `pytest-asyncio` utilizing the **transactional test pattern** to run tests instantly in isolated database sessions that roll back automatically.
-*   **📈 Settings Management**: Loaded dynamically from `.env` files using `pydantic-settings` v2 with dynamic database URI building.
+    *   **Motor** async driver—the official high-performance asynchronous driver for MongoDB.
+    *   Pydantic v2 document mapping for clean, validation-first database collections.
+*   **🐳 Containerized Orchestration**: Production-ready, multi-stage `Dockerfile` and `docker-compose.yml` to spin up MongoDB and the API.
+*   **🧪 Robust Testing**: Configured with `pytest` and `pytest-asyncio` utilizing an automated test database isolation fixture that clears collections between test runs to guarantee absolute test-state independence.
+*   **📈 Settings Management**: Loaded dynamically from `.env` files using `pydantic-settings` v2.
 
 ---
 
@@ -38,14 +37,13 @@ Project_For_Prem_Backend/
 │   │   └── deps.py              # Injectable dependencies (Database, Auth)
 │   │
 │   ├── core/                    # Core configs & security logic
-│   │   ├── config.py            # Pydantic Settings, dynamic DB URIs & CORS
+│   │   ├── config.py            # Pydantic Settings, MongoDB URIs & CORS
 │   │   └── security.py          # Password hashing & JWT operations
 │   │
 │   ├── db/                      # Database structure
-│   │   ├── base.py              # Declarative base & Alembic registry
-│   │   ├── session.py           # Async engine & get_db generator
+│   │   ├── session.py           # Motor Client connection pool & get_db dependency
 │   │   └── models/
-│   │       └── user.py          # SQLAlchemy User model (UUID, timestamped)
+│   │       └── user.py          # Pydantic MongoDB User Document Model
 │   │
 │   ├── schemas/                 # Data Transfer Objects (DTOs / Pydantic)
 │   │   └── user.py              # Validation schemas for users & tokens
@@ -54,11 +52,10 @@ Project_For_Prem_Backend/
 │   │   └── user_service.py      # Core logic (authentications, registrations)
 │   │
 │   ├── repositories/            # Database query encapsulation (CRUD)
-│   │   └── user_repo.py         # Encapsulated SQLAlchemy DB selects & inserts
+│   │   └── user_repo.py         # Encapsulated MongoDB Motor CRUD operations
 │   │
 │   └── main.py                  # Entrypoint initializing FastAPI & CORS
 │
-├── migrations/                  # Alembic DB migration files
 ├── tests/                       # Pytest integration & unit testing
 │   ├── conftest.py              # Global fixtures (test database, async clients)
 │   └── test_auth.py             # Auth flow integration tests
@@ -66,7 +63,6 @@ Project_For_Prem_Backend/
 ├── .env                         # Active local environment configurations
 ├── .env.example                 # Distributed template environment file
 ├── .gitignore                   # Standard git file ignores
-├── alembic.ini                  # Alembic DB configuration
 ├── Dockerfile                   # Multi-stage optimized app container
 ├── docker-compose.yml           # Database + API container coordinator
 ├── pyproject.toml               # Python project dependencies manifest
@@ -81,8 +77,8 @@ This project implements the **clean architecture** paradigm to keep database, ro
 
 1.  **Request Layer (`app/api`)**: Routes are cleanly structured and versioned (e.g., `/api/v1`). They use FastAPI dependencies (`app/api/deps.py`) to inject security checks and database sessions, offloading requests straight to the Service layer.
 2.  **Business Logic Layer (`app/services`)**: Services represent the central domain engine. They do not query databases directly; instead, they command repositories. Hashing and business rules (like uniqueness validations) live entirely here.
-3.  **Data Access Layer (`app/repositories`)**: Repositories abstract direct database interactions. They execute SQLAlchemy queries, decoupling the core application logic from the query mechanics.
-4.  **Database Entities (`app/db/models`)**: Defines the physical data layouts using SQLAlchemy.
+3.  **Data Access Layer (`app/repositories`)**: Repositories abstract direct database interactions. They execute MongoDB Motor queries, decoupling the core application logic from the query mechanics.
+4.  **Database Entities (`app/db/models`)**: Defines the document data schemas using Pydantic.
 5.  **Data Transfer Objects (`app/schemas`)**: Pydantic v2 schemas act as strong typing boundaries to filter and validate request data entering the API, and sanitizing output data before leaving the server (e.g. automatically stripping `hashed_password`).
 
 ---
@@ -108,7 +104,7 @@ uv sync
 To manually add or remove packages in the future:
 ```bash
 # Add a production dependency
-uv add fastapi
+uv add motor
 
 # Add a development dependency
 uv add --dev pytest
@@ -120,29 +116,7 @@ Create an active `.env` file by copying the distributed template:
 ```bash
 cp .env.example .env
 ```
-*(By default, the `.env` is pre-configured to look for a PostgreSQL server on `localhost:5432` for seamless local runs).*
-
----
-
-## 🗄️ Database Migrations (Alembic)
-
-Database schema alterations are managed with Alembic.
-
-### Generate an Autogenerated Migration:
-```bash
-# This command automatically detects model schema updates
-uv run alembic revision --autogenerate -message "init user table"
-```
-
-### Apply All Pending Migrations:
-```bash
-uv run alembic upgrade head
-```
-
-### Rollback a Migration:
-```bash
-uv run alembic downgrade -1
-```
+*(By default, the `.env` is pre-configured to look for a MongoDB server on `mongodb+srv://...` for seamless runs).*
 
 ---
 
@@ -168,10 +142,8 @@ The project can be entirely run inside container environments.
 docker compose up -d --build
 ```
 This starts:
-1.  A PostgreSQL database container named `premium_postgres_db` on port `5432` with a persistent docker volume.
-2.  Our minimal FastAPI app container named `premium_fastapi_web` exposed on port `8000`.
-
-*Note: The FastAPI container automatically waits for PostgreSQL's internal health check to succeed before initiating boot, preventing connection retry exceptions.*
+1.  A MongoDB database container on port `27017` with a persistent docker volume.
+2.  Our minimal FastAPI app container exposed on port `8000`.
 
 ---
 
@@ -179,10 +151,10 @@ This starts:
 
 Testing is run using `pytest` and `pytest-asyncio`. 
 
-We implement the **transactional test pattern** inside `tests/conftest.py`:
-*   Every test receives an `AsyncSession` that is already in an active transaction.
-*   Upon test completion, the fixture automatically triggers a `rollback()`.
-*   This keeps tests 100% isolated and extremely fast as no permanent disk modifications are committed.
+We implement automated test database isolation inside `tests/conftest.py`:
+*   Before the test session starts, a temporary database `test_project_form_prem` is dropped/created.
+*   Between individual test runs, collections are emptied automatically.
+*   This keeps tests 100% isolated, reliable, and extremely fast.
 
 To run the full suite:
 ```bash
