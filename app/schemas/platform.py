@@ -1,6 +1,9 @@
 from datetime import datetime
-from typing import List, Optional
-from pydantic import BaseModel, Field, EmailStr
+from typing import List, Optional, Annotated, Any
+from pydantic import BaseModel, Field, EmailStr, BeforeValidator
+
+# Custom validator to convert BSON ObjectId/PydanticObjectId to string during serialization
+ObjectIdStr = Annotated[str, BeforeValidator(lambda v: str(v) if v is not None else v)]
 
 # ==============================================================================
 # ROLE SCHEMAS
@@ -10,7 +13,7 @@ class RoleCreate(BaseModel):
     permissions: List[str] = Field(default_factory=list, description="List of granular permissions")
 
 class RoleResponse(BaseModel):
-    id: str
+    id: ObjectIdStr
     name: str
     permissions: List[str]
 
@@ -35,7 +38,7 @@ class CompanyUpdate(BaseModel):
     managers: Optional[List[str]] = None
 
 class CompanyResponse(BaseModel):
-    id: str
+    id: ObjectIdStr
     name: str
     domain: str
     industry: str
@@ -69,7 +72,7 @@ class JobUpdate(BaseModel):
     salary_range: Optional[str] = None
 
 class JobResponse(BaseModel):
-    id: str
+    id: ObjectIdStr
     title: str
     description: str
     company_id: str
@@ -101,7 +104,7 @@ class CandidateUpdate(BaseModel):
     status: Optional[str] = None
 
 class CandidateResponse(BaseModel):
-    id: str
+    id: ObjectIdStr
     name: str
     email: EmailStr
     phone: Optional[str]
@@ -127,7 +130,7 @@ class ApplicationUpdate(BaseModel):
     notes: Optional[List[str]] = None
 
 class ApplicationResponse(BaseModel):
-    id: str
+    id: ObjectIdStr
     job_id: str
     candidate_id: str
     current_stage: str
@@ -153,7 +156,7 @@ class LeadUpdate(BaseModel):
     assigned_to: Optional[str] = None
 
 class LeadResponse(BaseModel):
-    id: str
+    id: ObjectIdStr
     company_name: str
     contact_name: str
     contact_email: EmailStr
@@ -175,7 +178,7 @@ class InvoiceCreate(BaseModel):
     due_date: datetime
 
 class InvoiceResponse(BaseModel):
-    id: str
+    id: ObjectIdStr
     invoice_number: str
     company_id: str
     amount: float
@@ -193,7 +196,7 @@ class PaymentCreate(BaseModel):
     transaction_id: Optional[str] = None
 
 class PaymentResponse(BaseModel):
-    id: str
+    id: ObjectIdStr
     invoice_id: str
     amount: float
     payment_method: str
@@ -213,7 +216,7 @@ class CMSPageCreate(BaseModel):
     content: str
 
 class CMSPageResponse(BaseModel):
-    id: str
+    id: ObjectIdStr
     slug: str
     title: str
     content: str
@@ -229,7 +232,7 @@ class CMSBlogCreate(BaseModel):
     author: str
 
 class CMSBlogResponse(BaseModel):
-    id: str
+    id: ObjectIdStr
     slug: str
     title: str
     content: str
@@ -245,7 +248,7 @@ class CMSServiceCreate(BaseModel):
     price: Optional[float] = None
 
 class CMSServiceResponse(BaseModel):
-    id: str
+    id: ObjectIdStr
     name: str
     description: str
     price: Optional[float]
@@ -258,7 +261,7 @@ class CMSServiceResponse(BaseModel):
 # AUDIT LOGS & NOTIFICATIONS
 # ==============================================================================
 class AuditLogResponse(BaseModel):
-    id: str
+    id: ObjectIdStr
     user_id: Optional[str]
     user_email: Optional[str]
     action: str
@@ -270,7 +273,7 @@ class AuditLogResponse(BaseModel):
         from_attributes = True
 
 class NotificationResponse(BaseModel):
-    id: str
+    id: ObjectIdStr
     recipient_email: EmailStr
     title: str
     message: str

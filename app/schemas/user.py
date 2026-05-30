@@ -18,8 +18,14 @@ class UserUpdate(BaseModel):
     role: Optional[str] = Field(None, description="New role")
     is_active: Optional[bool] = Field(None, description="Update active status")
 
+from typing import Annotated, Any
+from pydantic import BeforeValidator
+
+# Custom validator to convert BSON ObjectId/PydanticObjectId to string during serialization
+ObjectIdStr = Annotated[str, BeforeValidator(lambda v: str(v) if v is not None else v)]
+
 class UserResponse(UserBase):
-    id: str
+    id: ObjectIdStr
     created_at: datetime
 
     class Config:
