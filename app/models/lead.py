@@ -10,6 +10,8 @@ class Lead(Document):
     contact_phone: Optional[str] = None
     status: Indexed(str) = "NEW"  # NEW, CONTACTED, QUALIFIED, LOST
     assigned_to: Optional[str] = None  # Reference to User id (Recruiter/Admin)
+    score: int = Field(default=0, ge=0, le=100)  # AI-computed lead quality score (0-100)
+    last_activity_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Settings:

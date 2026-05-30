@@ -163,6 +163,8 @@ class LeadResponse(BaseModel):
     contact_phone: Optional[str]
     status: str
     assigned_to: Optional[str]
+    score: int = 0
+    last_activity_at: Optional[datetime] = None
     created_at: datetime
 
     class Config:
@@ -293,3 +295,125 @@ class DashboardKPIs(BaseModel):
     total_leads: int
     new_leads_count: int
     open_jobs_count: int
+
+
+# ==============================================================================
+# WORKFLOW AUTOMATION ENGINE SCHEMAS
+# ==============================================================================
+class WorkflowRuleCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    description: Optional[str] = None
+    is_active: bool = True
+    trigger_event: str = Field(..., description="CANDIDATE_STAGE_CHANGED | NEW_LEAD | INVOICE_PAID | APPLICATION_CREATED")
+    conditions: dict = Field(default_factory=dict, description="Key-value pairs matched against event payload")
+    action_type: str = Field(..., description="SEND_EMAIL | CREATE_ACTIVITY_LOG | UPDATE_LEAD_SCORE")
+    action_config: dict = Field(default_factory=dict)
+
+class WorkflowRuleUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+    conditions: Optional[dict] = None
+    action_type: Optional[str] = None
+    action_config: Optional[dict] = None
+
+class WorkflowRuleResponse(BaseModel):
+    id: ObjectIdStr
+    name: str
+    description: Optional[str]
+    is_active: bool
+    trigger_event: str
+    conditions: dict
+    action_type: str
+    action_config: dict
+    trigger_count: int
+    last_triggered_at: Optional[datetime]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ==============================================================================
+# ACTIVITY FEED SCHEMAS
+# ==============================================================================
+class ActivityLogResponse(BaseModel):
+    id: ObjectIdStr
+    event_type: str
+    entity_type: str
+    entity_id: Optional[str]
+    title: str
+    description: str
+    actor_id: Optional[str]
+    actor_email: Optional[str]
+    metadata: dict
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ==============================================================================
+# CANDIDATE TIMELINE SCHEMAS
+# ==============================================================================
+class CandidateTimelineResponse(BaseModel):
+    id: ObjectIdStr
+    candidate_id: str
+    event_type: str
+    title: str
+    description: str
+    actor_id: Optional[str]
+    actor_email: Optional[str]
+    related_job_id: Optional[str]
+    related_application_id: Optional[str]
+    metadata: dict
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ==============================================================================
+# AI CANDIDATE MATCHING SCHEMAS
+# ==============================================================================
+class CandidateMatchScore(BaseModel):
+    candidate_id: str
+    candidate_name: str
+    candidate_email: str
+    skills: List[str]
+    status: str
+    total_score: float = Field(..., description="Weighted match score 0-100")
+    skill_score: float
+    keyword_score: float
+    availability_score: float
+    matched_skills: List[str]
+    missing_skills: List[str]
+
+class CandidateMatchResponse(BaseModel):
+    job_id: str
+    job_title: str
+    total_candidates_evaluated: int
+    ranked_candidates: List[CandidateMatchScore]
+
+
+# ==============================================================================
+# HIRING ANALYTICS SCHEMAS
+# ==============================================================================
+class StageAnalytics(BaseModel):
+    stage_name: str
+    candidate_count: int
+    drop_off_rate: float = Field(..., description="Percentage that do not advance past this stage")
+
+class RecruiterPerformance(BaseModel):
+    recruiter_id: str
+    recruiter_email: Optional[str]
+    total_jobs: int
+    open_jobs: int
+    closed_jobs: int
+    total_applications: int
+
+class HiringAnalyticsResponse(BaseModel):
+    total_applications: int
+    total_jobs: int
+    stage_analytics: List[StageAnalytics]
+    recruiter_performance: List[RecruiterPerformance]

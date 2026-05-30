@@ -15,6 +15,10 @@ from app.models.payment import Payment
 from app.models.audit_log import AuditLog
 from app.models.notification import Notification
 from app.models.cms import CMSPage, CMSBlog, CMSService
+# New intelligence models
+from app.models.activity_log import ActivityLog
+from app.models.workflow import WorkflowRule
+from app.models.candidate_timeline import CandidateTimeline
 
 # Instantiate global Motor Client
 client = AsyncIOMotorClient(settings.MONGODB_URL)
@@ -41,5 +45,9 @@ async def init_db():
             CMSPage,
             CMSBlog,
             CMSService,
+            # New intelligence collections
+            ActivityLog,
+            WorkflowRule,
+            CandidateTimeline,
         ]
     )

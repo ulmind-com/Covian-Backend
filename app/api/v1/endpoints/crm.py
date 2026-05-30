@@ -5,6 +5,8 @@ from app.models.lead import Lead
 from app.models.user import User
 from app.schemas.platform import LeadCreate, LeadUpdate, LeadResponse
 from app.utils.audit import log_action
+from app.utils.activity import log_activity
+from app.utils.workflow_engine import trigger_workflow_event
 
 router = APIRouter()
 
@@ -43,6 +45,30 @@ async def create_lead(
         user=current_user,
         request=request
     )
+
+    # Log to real-time activity feed
+    await log_activity(
+        event_type="NEW_LEAD",
+        entity_type="lead",
+        entity_id=str(lead.id),
+        title=f"New lead: {lead.company_name}",
+        description=f"CRM lead created for {lead.company_name} (contact: {lead.contact_name}).",
+        actor=current_user,
+    )
+
+    # Fire workflow engine
+    await trigger_workflow_event(
+        event="NEW_LEAD",
+        payload={
+            "lead_id": str(lead.id),
+            "company_name": lead.company_name,
+            "contact_email": str(lead.contact_email),
+            "status": lead.status,
+            "assigned_to": lead.assigned_to or "",
+        },
+        actor=current_user,
+    )
+
     return lead
 
 
@@ -148,3 +174,61 @@ async def delete_lead(
         request=request
     )
     return None
+
+
+# ==============================================================================
+# LEAD SCORING SYSTEM
+# ==============================================================================
+
+@router.get("/leads/scored", response_model=List[LeadResponse])
+async def get_scored_leads(
+    min_score: int = 0,
+    limit: int = 50,
+    current_user: User = Depends(RoleChecker(["SUPER_ADMIN", "ADMIN", "RECRUITER"]))
+) -> Any:
+    """
+    Return all leads sorted by AI score descending.
+    Optionally filter by minimum score threshold using ?min_score=X.
+    Scores range 0-100 and auto-update based on status activity.
+    """
+    all_leads = await Lead.find_all().to_list()
+    scored = [l for l in all_leads if l.score >= min_score]
+    scored.sort(key=lambda l: l.score, reverse=True)
+    return scored[:limit]
+
+
+@router.post("/leads/{lead_id}/rescore", response_model=LeadResponse)
+async def rescore_lead(
+    lead_id: str,
+    current_user: User = Depends(RoleChecker(["SUPER_ADMIN", "ADMIN"]))
+) -> Any:
+    """
+    Manually trigger a lead score recalculation based on current status and activity.
+    Scoring rules:
+      - Status NEW      : base 10 pts
+      - Status CONTACTED: +20 pts
+      - Status QUALIFIED: +40 pts
+      - Has phone       : +10 pts
+      - Has assigned    : +10 pts
+      - Score capped at 100
+    """
+    from datetime import timezone
+    lead = await Lead.get(lead_id)
+    if not lead:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lead not found")
+
+    score = 0
+    status_scores = {"NEW": 10, "CONTACTED": 30, "QUALIFIED": 70, "LOST": 0}
+    score += status_scores.get(lead.status, 0)
+    if lead.contact_phone:
+        score += 10
+    if lead.assigned_to:
+        score += 10
+    if lead.status == "QUALIFIED":
+        score += 10  # bonus for highly qualified
+
+    lead.score = min(100, score)
+    from datetime import datetime
+    lead.last_activity_at = datetime.now(timezone.utc)
+    await lead.save()
+    return lead

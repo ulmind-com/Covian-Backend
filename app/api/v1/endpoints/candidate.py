@@ -3,13 +3,18 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from app.api.deps import get_current_active_user, RoleChecker, PermissionChecker
 from app.models.candidate import Candidate
 from app.models.application import Application
+from app.models.candidate_timeline import CandidateTimeline
 from app.models.job import Job
 from app.models.user import User
 from app.schemas.platform import (
     CandidateCreate, CandidateUpdate, CandidateResponse,
-    ApplicationCreate, ApplicationUpdate, ApplicationResponse
+    ApplicationCreate, ApplicationUpdate, ApplicationResponse,
+    CandidateTimelineResponse,
 )
 from app.utils.audit import log_action
+from app.utils.activity import log_activity
+from app.utils.timeline import add_candidate_timeline_event
+from app.utils.workflow_engine import trigger_workflow_event
 
 router = APIRouter()
 
@@ -198,7 +203,42 @@ async def create_application(
         title="Application Received - CoreVita Advisory",
         message=f"Hello {candidate.name},\n\nWe have received your application for the position: {job.title}. Our team is reviewing it and we will be in touch soon!"
     )
-    
+
+    # Log to candidate timeline
+    await add_candidate_timeline_event(
+        candidate_id=str(candidate.id),
+        event_type="APPLICATION_CREATED",
+        title=f"Applied to {job.title}",
+        description=f"Application submitted for job '{job.title}'. Initial stage: {application.current_stage}.",
+        actor=current_user,
+        related_job_id=app_in.job_id,
+        related_application_id=str(application.id),
+    )
+
+    # Log to activity feed
+    await log_activity(
+        event_type="APPLICATION_CREATED",
+        entity_type="application",
+        entity_id=str(application.id),
+        title=f"New application: {candidate.name} → {job.title}",
+        description=f"Candidate {candidate.name} applied to job '{job.title}'.",
+        actor=current_user,
+    )
+
+    # Trigger workflow automation engine
+    await trigger_workflow_event(
+        event="APPLICATION_CREATED",
+        payload={
+            "application_id": str(application.id),
+            "candidate_id": str(candidate.id),
+            "candidate_email": candidate.email,
+            "job_id": app_in.job_id,
+            "job_title": job.title,
+            "stage": application.current_stage,
+        },
+        actor=current_user,
+    )
+
     await log_action(
         action="CREATE_APPLICATION",
         details=f"Submitted application for candidate {candidate.name} to job {job.title}",
@@ -276,7 +316,46 @@ async def update_application(
         title="Application Status Updated - CoreVita Advisory",
         message=f"Hello {candidate.name},\n\nYour application status for '{job.title}' has been updated from '{old_stage}' to '{app.current_stage}'."
     )
-    
+
+    # Log stage change to candidate timeline
+    await add_candidate_timeline_event(
+        candidate_id=str(candidate.id),
+        event_type="STAGE_CHANGED",
+        title=f"Stage moved: {old_stage} → {app.current_stage}",
+        description=f"Application for '{job.title}' advanced from '{old_stage}' to '{app.current_stage}'.",
+        actor=current_user,
+        related_job_id=app.job_id,
+        related_application_id=str(app.id),
+        metadata={"old_stage": old_stage, "new_stage": app.current_stage},
+    )
+
+    # Log to global activity feed
+    await log_activity(
+        event_type="CANDIDATE_STAGE_CHANGED",
+        entity_type="application",
+        entity_id=str(app.id),
+        title=f"{candidate.name} → {app.current_stage} ({job.title})",
+        description=f"Candidate '{candidate.name}' moved from '{old_stage}' to '{app.current_stage}' in job '{job.title}'.",
+        actor=current_user,
+        metadata={"old_stage": old_stage, "new_stage": app.current_stage},
+    )
+
+    # Trigger workflow automation engine
+    await trigger_workflow_event(
+        event="CANDIDATE_STAGE_CHANGED",
+        payload={
+            "application_id": str(app.id),
+            "candidate_id": str(candidate.id),
+            "candidate_email": candidate.email,
+            "candidate_name": candidate.name,
+            "job_id": app.job_id,
+            "job_title": job.title,
+            "old_stage": old_stage,
+            "stage": app.current_stage,
+        },
+        actor=current_user,
+    )
+
     await log_action(
         action="UPDATE_APPLICATION_STAGE",
         details=f"Moved application (id: {app.id}) to stage: {app.current_stage}",
@@ -285,3 +364,27 @@ async def update_application(
     )
     return app
 
+
+# ==============================================================================
+# CANDIDATE TIMELINE
+# ==============================================================================
+
+@router.get("/{candidate_id}/timeline", response_model=List[CandidateTimelineResponse])
+async def get_candidate_timeline(
+    candidate_id: str,
+    limit: int = 100,
+    current_user: User = Depends(RoleChecker(["SUPER_ADMIN", "ADMIN", "RECRUITER"]))
+) -> Any:
+    """
+    Retrieve the full chronological event timeline for a specific candidate.
+    Covers: application created, stage changes, notes, emails sent, and more.
+    """
+    candidate = await Candidate.get(candidate_id)
+    if not candidate:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Candidate not found"
+        )
+    return await CandidateTimeline.find(
+        CandidateTimeline.candidate_id == candidate_id
+    ).sort("-created_at").limit(limit).to_list()
