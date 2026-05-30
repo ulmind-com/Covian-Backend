@@ -59,14 +59,14 @@ async def seed_data():
     # 2. SEED DEFAULT SUPER ADMIN
     # ----------------------------------------------------
     logger.info("Checking for default SUPER_ADMIN user...")
-    admin_email = "admin@corevita.co"
+    admin_email = "premjeet.dev26@gmail.com"
     admin_user = await User.find_one(User.email == admin_email)
     
     if not admin_user:
         admin_user = User(
             email=admin_email,
             name="CoreVita Administrator",
-            hashed_password=get_password_hash("adminpassword123"),
+            hashed_password=get_password_hash("admin123"),
             role="SUPER_ADMIN",
             is_active=True
         )
