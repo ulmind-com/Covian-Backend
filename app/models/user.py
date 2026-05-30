@@ -34,8 +34,9 @@ class User(Document):
 
     class Settings:
         name = "users"
+        # NOTE: "email" is already uniquely indexed via Indexed(EmailStr, unique=True) on the field.
+        # Adding it here again would create a duplicate non-unique index → OperationFailure on startup.
         indexes = [
-            "email",
             "role",
             "is_active",
         ]
