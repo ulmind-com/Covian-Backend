@@ -44,6 +44,7 @@ from app.schemas.platform import (
     WorkflowRuleUpdate,
     WorkflowRuleResponse,
 )
+from app.schemas.user import UserStatsResponse
 
 router = APIRouter()
 
@@ -114,6 +115,24 @@ async def export_invoices_report_csv(
         headers={"Content-Disposition": "attachment; filename=corevita_invoices_report.csv"}
     )
 
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 0b. ADMIN: USER STATISTICS
+# ──────────────────────────────────────────────────────────────────────────────
+
+@router.get("/users/stats", response_model=UserStatsResponse)
+async def get_admin_user_stats(
+    current_user: User = Depends(RoleChecker(["SUPER_ADMIN", "ADMIN"]))
+) -> Any:
+    """
+    Admin user analytics:
+    - Total, active, inactive, verified users
+    - Users broken down by role
+    - New registrations in the last 7 days
+    """
+    from app.services.user_service import user_service
+    return await user_service.get_user_stats()
 
 
 # ──────────────────────────────────────────────────────────────────────────────
