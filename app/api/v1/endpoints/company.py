@@ -1,5 +1,5 @@
 from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from app.api.deps import get_current_active_user, RoleChecker, PermissionChecker
 from app.models.company import Company
 from app.models.user import User
@@ -100,12 +100,12 @@ async def update_company(
     return company
 
 
-@router.delete("/{company_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{company_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 async def delete_company(
     company_id: str,
     request: Request,
     current_user: User = Depends(PermissionChecker("manage_companies"))
-) -> Any:
+) -> None:
     """
     Delete a company profile.
     Requires 'manage_companies' permission.

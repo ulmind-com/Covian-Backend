@@ -1,5 +1,5 @@
 from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from app.api.deps import get_current_active_user, RoleChecker, PermissionChecker
 from app.models.user import User
 from app.schemas.user import UserResponse, UserCreate, UserUpdate
@@ -104,11 +104,11 @@ async def update_user_by_admin(
     return updated_user
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 async def delete_user_by_admin(
     user_id: str,
     current_user: User = Depends(PermissionChecker("manage_users"))
-) -> Any:
+) -> None:
     """
     Delete a user from the platform permanently.
     Requires 'manage_users' permission.

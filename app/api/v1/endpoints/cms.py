@@ -1,5 +1,5 @@
 from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from app.api.deps import get_current_active_user, RoleChecker, PermissionChecker
 from app.models.cms import CMSPage, CMSBlog, CMSService
 from app.models.user import User
@@ -69,12 +69,12 @@ async def get_cms_page_by_slug(slug: str) -> Any:
     return page
 
 
-@router.delete("/pages/{slug}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/pages/{slug}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 async def delete_cms_page(
     slug: str,
     request: Request,
     current_user: User = Depends(PermissionChecker("manage_cms"))
-) -> Any:
+) -> None:
     """
     Remove a platform page permanently.
     """

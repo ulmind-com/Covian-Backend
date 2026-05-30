@@ -1,5 +1,5 @@
 from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from app.api.deps import get_current_active_user, RoleChecker, PermissionChecker
 from app.models.lead import Lead
 from app.models.user import User
@@ -122,12 +122,12 @@ async def update_lead(
     return lead
 
 
-@router.delete("/{lead_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{lead_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 async def delete_lead(
     lead_id: str,
     request: Request,
     current_user: User = Depends(PermissionChecker("manage_crm"))
-) -> Any:
+) -> None:
     """
     Delete a CRM Lead.
     Requires 'manage_crm' permission.

@@ -1,5 +1,5 @@
 from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from app.api.deps import get_current_active_user, RoleChecker, PermissionChecker
 from app.models.job import Job
 from app.models.company import Company
@@ -132,12 +132,12 @@ async def update_job(
     return job
 
 
-@router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 async def delete_job(
     job_id: str,
     request: Request,
     current_user: User = Depends(PermissionChecker("manage_jobs"))
-) -> Any:
+) -> None:
     """
     Remove a job listing permanently.
     Requires 'manage_jobs' permission.

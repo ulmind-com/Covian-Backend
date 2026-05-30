@@ -1,5 +1,5 @@
 from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from app.api.deps import get_current_active_user, RoleChecker, PermissionChecker
 from app.models.candidate import Candidate
 from app.models.application import Application
@@ -128,12 +128,12 @@ async def update_candidate(
     return candidate
 
 
-@router.delete("/{candidate_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{candidate_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 async def delete_candidate(
     candidate_id: str,
     request: Request,
     current_user: User = Depends(PermissionChecker("manage_candidates"))
-) -> Any:
+) -> None:
     """
     Delete a candidate profile.
     Requires 'manage_candidates' permission.
