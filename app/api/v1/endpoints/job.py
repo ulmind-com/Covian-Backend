@@ -45,6 +45,10 @@ async def create_job(
         status=job_in.status,
         pipeline_stages=job_in.pipeline_stages,
         salary_range=job_in.salary_range,
+        location=job_in.location,
+        industry=job_in.industry,
+        job_type=job_in.job_type,
+        experience_level=job_in.experience_level,
     )
     await job.insert()
     
@@ -62,10 +66,9 @@ async def list_jobs(
     skip: int = 0,
     limit: int = 100,
     status_filter: str = None,
-    current_user: User = Depends(get_current_active_user)
 ) -> Any:
     """
-    Fetch a paginated list of jobs. Can filter by status (e.g. OPEN, CLOSED).
+    Public endpoint to fetch a paginated list of jobs. Can filter by status (e.g. OPEN, CLOSED).
     """
     query = {}
     if status_filter:
@@ -77,10 +80,9 @@ async def list_jobs(
 @router.get("/{job_id}", response_model=JobResponse)
 async def get_job_by_id(
     job_id: str,
-    current_user: User = Depends(get_current_active_user)
 ) -> Any:
     """
-    Retrieve specific job profile details by ID.
+    Public endpoint to retrieve specific job profile details by ID.
     """
     job = await Job.get(job_id)
     if not job:

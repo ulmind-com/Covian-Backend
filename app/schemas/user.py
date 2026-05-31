@@ -1,6 +1,8 @@
 from datetime import datetime
-from typing import Annotated, Any, List, Optional
+from typing import Optional, Annotated
 from pydantic import BaseModel, EmailStr, Field, BeforeValidator
+
+PyObjectId = Annotated[str, BeforeValidator(str)]
 
 # ─── Custom BSON ObjectId → str serializer ───────────────────────────────────
 ObjectIdStr = Annotated[str, BeforeValidator(lambda v: str(v) if v is not None else v)]
@@ -46,40 +48,8 @@ class UserUpdate(BaseModel):
     avatar_url: Optional[str] = None
     phone: Optional[str] = None
 
-
-class ProfileUpdate(BaseModel):
-    """Strict self-profile update — only personal fields."""
-    name: Optional[str] = Field(None, min_length=1, max_length=100)
-    avatar_url: Optional[str] = None
-    phone: Optional[str] = None
-
-
-# ─── PASSWORD ─────────────────────────────────────────────────────────────────
-class ChangePasswordRequest(BaseModel):
-    current_password: str = Field(..., min_length=1)
-    new_password: str = Field(..., min_length=8, max_length=100)
-
-
-class ForgotPasswordRequest(BaseModel):
-    email: EmailStr
-
-
-class ResetPasswordRequest(BaseModel):
-    token: str
-    new_password: str = Field(..., min_length=8, max_length=100)
-
-
-# ─── RESPONSE ─────────────────────────────────────────────────────────────────
-class UserResponse(BaseModel):
-    id: ObjectIdStr
-    email: EmailStr
-    name: str
-    role: str
-    is_active: bool
-    is_verified: bool = False
-    avatar_url: Optional[str] = None
-    phone: Optional[str] = None
-    permissions: List[str] = []
+class UserResponse(UserBase):
+    id: PyObjectId
     created_at: datetime
     updated_at: Optional[datetime] = None
     last_login: Optional[datetime] = None

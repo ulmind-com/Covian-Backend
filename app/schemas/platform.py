@@ -2,9 +2,7 @@ from datetime import datetime
 from typing import List, Optional, Annotated, Any
 from pydantic import BaseModel, Field, EmailStr, BeforeValidator
 
-# Custom validator to convert BSON ObjectId/PydanticObjectId to string during serialization
-ObjectIdStr = Annotated[str, BeforeValidator(lambda v: str(v) if v is not None else v)]
-
+PyObjectId = Annotated[str, BeforeValidator(str)]
 # ==============================================================================
 # ROLE SCHEMAS
 # ==============================================================================
@@ -13,7 +11,7 @@ class RoleCreate(BaseModel):
     permissions: List[str] = Field(default_factory=list, description="List of granular permissions")
 
 class RoleResponse(BaseModel):
-    id: ObjectIdStr
+    id: PyObjectId
     name: str
     permissions: List[str]
 
@@ -38,7 +36,7 @@ class CompanyUpdate(BaseModel):
     managers: Optional[List[str]] = None
 
 class CompanyResponse(BaseModel):
-    id: ObjectIdStr
+    id: PyObjectId
     name: str
     domain: str
     industry: str
@@ -55,13 +53,17 @@ class CompanyResponse(BaseModel):
 class JobCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=100)
     description: str
-    company_id: str = Field(..., description="ID of the company hosting the job")
+    company_id: PyObjectId = Field(..., description="ID of the company hosting the job")
     recruiter_id: Optional[str] = Field(None, description="Optional ID of the assigned Recruiter")
     status: str = Field("OPEN", description="Job status (OPEN, CLOSED, DRAFT)")
     pipeline_stages: List[str] = Field(
         default_factory=lambda: ["Applied", "Screened", "Interviewing", "Offer", "Rejected", "Hired"]
     )
     salary_range: Optional[str] = None
+    location: Optional[str] = None
+    industry: Optional[str] = None
+    job_type: Optional[str] = None
+    experience_level: Optional[str] = None
 
 class JobUpdate(BaseModel):
     title: Optional[str] = None
@@ -70,16 +72,24 @@ class JobUpdate(BaseModel):
     status: Optional[str] = None
     pipeline_stages: Optional[List[str]] = None
     salary_range: Optional[str] = None
+    location: Optional[str] = None
+    industry: Optional[str] = None
+    job_type: Optional[str] = None
+    experience_level: Optional[str] = None
 
 class JobResponse(BaseModel):
-    id: ObjectIdStr
+    id: PyObjectId
     title: str
     description: str
-    company_id: str
+    company_id: PyObjectId
     recruiter_id: Optional[str]
     status: str
     pipeline_stages: List[str]
     salary_range: Optional[str]
+    location: Optional[str]
+    industry: Optional[str]
+    job_type: Optional[str]
+    experience_level: Optional[str]
     created_at: datetime
 
     class Config:
@@ -104,7 +114,7 @@ class CandidateUpdate(BaseModel):
     status: Optional[str] = None
 
 class CandidateResponse(BaseModel):
-    id: ObjectIdStr
+    id: PyObjectId
     name: str
     email: EmailStr
     phone: Optional[str]
@@ -120,8 +130,8 @@ class CandidateResponse(BaseModel):
 # APPLICATION SCHEMAS
 # ==============================================================================
 class ApplicationCreate(BaseModel):
-    job_id: str
-    candidate_id: str
+    job_id: PyObjectId
+    candidate_id: PyObjectId
     current_stage: str = "Applied"
     notes: List[str] = Field(default_factory=list)
 
@@ -130,9 +140,9 @@ class ApplicationUpdate(BaseModel):
     notes: Optional[List[str]] = None
 
 class ApplicationResponse(BaseModel):
-    id: ObjectIdStr
-    job_id: str
-    candidate_id: str
+    id: PyObjectId
+    job_id: PyObjectId
+    candidate_id: PyObjectId
     current_stage: str
     notes: List[str]
     created_at: datetime
@@ -156,7 +166,7 @@ class LeadUpdate(BaseModel):
     assigned_to: Optional[str] = None
 
 class LeadResponse(BaseModel):
-    id: ObjectIdStr
+    id: PyObjectId
     company_name: str
     contact_name: str
     contact_email: EmailStr
@@ -175,14 +185,14 @@ class LeadResponse(BaseModel):
 # ==============================================================================
 class InvoiceCreate(BaseModel):
     invoice_number: str
-    company_id: str
+    company_id: PyObjectId
     amount: float
     due_date: datetime
 
 class InvoiceResponse(BaseModel):
-    id: ObjectIdStr
+    id: PyObjectId
     invoice_number: str
-    company_id: str
+    company_id: PyObjectId
     amount: float
     status: str
     due_date: datetime
@@ -192,14 +202,14 @@ class InvoiceResponse(BaseModel):
         from_attributes = True
 
 class PaymentCreate(BaseModel):
-    invoice_id: str
+    invoice_id: PyObjectId
     amount: float
     payment_method: str = "STRIPE"
     transaction_id: Optional[str] = None
 
 class PaymentResponse(BaseModel):
-    id: ObjectIdStr
-    invoice_id: str
+    id: PyObjectId
+    invoice_id: PyObjectId
     amount: float
     payment_method: str
     transaction_id: Optional[str]
@@ -218,7 +228,7 @@ class CMSPageCreate(BaseModel):
     content: str
 
 class CMSPageResponse(BaseModel):
-    id: ObjectIdStr
+    id: PyObjectId
     slug: str
     title: str
     content: str
@@ -234,7 +244,7 @@ class CMSBlogCreate(BaseModel):
     author: str
 
 class CMSBlogResponse(BaseModel):
-    id: ObjectIdStr
+    id: PyObjectId
     slug: str
     title: str
     content: str
@@ -250,7 +260,7 @@ class CMSServiceCreate(BaseModel):
     price: Optional[float] = None
 
 class CMSServiceResponse(BaseModel):
-    id: ObjectIdStr
+    id: PyObjectId
     name: str
     description: str
     price: Optional[float]
@@ -263,7 +273,7 @@ class CMSServiceResponse(BaseModel):
 # AUDIT LOGS & NOTIFICATIONS
 # ==============================================================================
 class AuditLogResponse(BaseModel):
-    id: ObjectIdStr
+    id: PyObjectId
     user_id: Optional[str]
     user_email: Optional[str]
     action: str
@@ -275,7 +285,7 @@ class AuditLogResponse(BaseModel):
         from_attributes = True
 
 class NotificationResponse(BaseModel):
-    id: ObjectIdStr
+    id: PyObjectId
     recipient_email: EmailStr
     title: str
     message: str

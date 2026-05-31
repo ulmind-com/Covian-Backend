@@ -13,6 +13,10 @@ class Job(Document):
         default_factory=lambda: ["Applied", "Screened", "Interviewing", "Offer", "Rejected", "Hired"]
     )
     salary_range: Optional[str] = None
+    location: Optional[str] = None
+    industry: Optional[str] = None
+    job_type: Optional[str] = Field(None, description="Full-time, Part-time, Contract")
+    experience_level: Optional[str] = Field(None, description="Entry, Mid, Senior, Executive")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Settings:

@@ -41,11 +41,9 @@ async def create_company(
 async def list_companies(
     skip: int = 0,
     limit: int = 100,
-    current_user: User = Depends(get_current_active_user)
 ) -> Any:
     """
-    Get a paginated list of all registered company profiles.
-    Accessible to any authenticated user.
+    Public endpoint to get a paginated list of all registered company profiles.
     """
     return await Company.find_all().skip(skip).limit(limit).to_list()
 
@@ -53,10 +51,9 @@ async def list_companies(
 @router.get("/{company_id}", response_model=CompanyResponse)
 async def get_company_by_id(
     company_id: str,
-    current_user: User = Depends(get_current_active_user)
 ) -> Any:
     """
-    Retrieve specific company profile by its ID.
+    Public endpoint to retrieve specific company profile by its ID.
     """
     company = await Company.get(company_id)
     if not company:
