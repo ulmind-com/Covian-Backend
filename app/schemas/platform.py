@@ -328,7 +328,7 @@ class WorkflowRuleUpdate(BaseModel):
     action_config: Optional[dict] = None
 
 class WorkflowRuleResponse(BaseModel):
-    id: ObjectIdStr
+    id: PyObjectId
     name: str
     description: Optional[str]
     is_active: bool
@@ -348,7 +348,7 @@ class WorkflowRuleResponse(BaseModel):
 # ACTIVITY FEED SCHEMAS
 # ==============================================================================
 class ActivityLogResponse(BaseModel):
-    id: ObjectIdStr
+    id: PyObjectId
     event_type: str
     entity_type: str
     entity_id: Optional[str]
@@ -367,7 +367,7 @@ class ActivityLogResponse(BaseModel):
 # CANDIDATE TIMELINE SCHEMAS
 # ==============================================================================
 class CandidateTimelineResponse(BaseModel):
-    id: ObjectIdStr
+    id: PyObjectId
     candidate_id: str
     event_type: str
     title: str
