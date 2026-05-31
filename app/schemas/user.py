@@ -69,8 +69,17 @@ class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str = Field(..., min_length=8, max_length=100)
 
-class UserResponse(UserBase):
+# ─── RESPONSE ─────────────────────────────────────────────────────────────────
+class UserResponse(BaseModel):
     id: PyObjectId
+    email: EmailStr
+    name: str
+    role: str
+    is_active: bool
+    is_verified: bool = False
+    avatar_url: Optional[str] = None
+    phone: Optional[str] = None
+    permissions: List[str] = []
     created_at: datetime
     updated_at: Optional[datetime] = None
     last_login: Optional[datetime] = None
