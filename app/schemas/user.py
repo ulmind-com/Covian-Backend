@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, Annotated
+from typing import Optional, Annotated, List
 from pydantic import BaseModel, EmailStr, Field, BeforeValidator
 
 PyObjectId = Annotated[str, BeforeValidator(str)]
@@ -47,6 +47,27 @@ class UserUpdate(BaseModel):
     is_active: Optional[bool] = None  # ignored on /me endpoint
     avatar_url: Optional[str] = None
     phone: Optional[str] = None
+
+class ProfileUpdate(BaseModel):
+    """Strict self-profile update — only personal fields."""
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    avatar_url: Optional[str] = None
+    phone: Optional[str] = None
+
+
+# ─── PASSWORD ─────────────────────────────────────────────────────────────────
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=8, max_length=100)
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=8, max_length=100)
 
 class UserResponse(UserBase):
     id: PyObjectId
