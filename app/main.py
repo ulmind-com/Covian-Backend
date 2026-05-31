@@ -35,16 +35,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Set up CORS middleware
-# If BACKEND_CORS_ORIGINS exists, configure it, otherwise allow all local origins in development
-if settings.BACKEND_CORS_ORIGINS:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[str(origin).rstrip("/") for origin in settings.BACKEND_CORS_ORIGINS],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+# Set up CORS middleware to allow all origins for now to fix deployment issues
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Include core versioned routing
 app.include_router(api_router, prefix=settings.API_V1_STR)
