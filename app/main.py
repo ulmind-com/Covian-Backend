@@ -46,10 +46,12 @@ ALLOWED_ORIGINS = [
     "https://www.corevita.in",
     "https://covian.in",
     "https://www.covian.in",
+    "https://corevita-advisory.vercel.app",
 ]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
