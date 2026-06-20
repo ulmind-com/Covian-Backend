@@ -1,0 +1,245 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.5, pytest-9.0.3, pluggy-1.6.0
+rootdir: /Users/arnabsenapati/Project_For_Prem_Backend
+configfile: pyproject.toml
+plugins: asyncio-1.4.0, anyio-4.13.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 2 items
+
+tests/test_auth.py .F                                                    [100%]
+
+=================================== FAILURES ===================================
+____________________ test_user_registration_and_login_flow _____________________
+
+client = <httpx.AsyncClient object at 0x10a284f50>
+
+    async def test_user_registration_and_login_flow(client: AsyncClient) -> None:
+        """
+        Test a complete user cycle:
+        1. Register a new user.
+        2. Attempt registering with the same email (should fail).
+        3. Login with credentials to obtain JWT access & refresh tokens.
+        4. Query protected profile endpoint using the access token.
+        5. Query protected profile without headers (should fail).
+        """
+        email = "testuser@example.com"
+        password = "supersecurepassword123"
+        name = "Test User"
+    
+        # --- 1. Register ---
+        register_payload = {
+            "email": email,
+            "password": password,
+            "name": name
+        }
+>       response = await client.post("/api/v1/auth/register", json=register_payload)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_auth.py:38: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.14/site-packages/httpx/_client.py:1859: in post
+    return await self.request(
+.venv/lib/python3.14/site-packages/httpx/_client.py:1540: in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.14/site-packages/httpx/_client.py:1629: in send
+    response = await self._send_handling_auth(
+.venv/lib/python3.14/site-packages/httpx/_client.py:1657: in _send_handling_auth
+    response = await self._send_handling_redirects(
+.venv/lib/python3.14/site-packages/httpx/_client.py:1694: in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.14/site-packages/httpx/_client.py:1730: in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.14/site-packages/httpx/_transports/asgi.py:170: in handle_async_request
+    await self.app(scope, receive, send)
+.venv/lib/python3.14/site-packages/fastapi/applications.py:1159: in __call__
+    await super().__call__(scope, receive, send)
+.venv/lib/python3.14/site-packages/starlette/applications.py:90: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv/lib/python3.14/site-packages/starlette/middleware/errors.py:186: in __call__
+    raise exc
+.venv/lib/python3.14/site-packages/starlette/middleware/errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+.venv/lib/python3.14/site-packages/starlette/middleware/cors.py:88: in __call__
+    await self.app(scope, receive, send)
+.venv/lib/python3.14/site-packages/starlette/middleware/exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+.venv/lib/python3.14/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+.venv/lib/python3.14/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+.venv/lib/python3.14/site-packages/fastapi/middleware/asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+.venv/lib/python3.14/site-packages/starlette/routing.py:660: in __call__
+    await self.middleware_stack(scope, receive, send)
+.venv/lib/python3.14/site-packages/starlette/routing.py:680: in app
+    await route.handle(scope, receive, send)
+.venv/lib/python3.14/site-packages/starlette/routing.py:276: in handle
+    await self.app(scope, receive, send)
+.venv/lib/python3.14/site-packages/fastapi/routing.py:134: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+.venv/lib/python3.14/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+.venv/lib/python3.14/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+.venv/lib/python3.14/site-packages/fastapi/routing.py:120: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+.venv/lib/python3.14/site-packages/fastapi/routing.py:674: in app
+    raw_response = await run_endpoint_function(
+.venv/lib/python3.14/site-packages/fastapi/routing.py:328: in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/api/v1/endpoints/auth.py:23: in register
+    user = await user_service.register(user_in=user_in)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/services/user_service.py:50: in register
+    existing_user = await user_repo.get_by_email(email=user_in.email)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/repositories/user_repo.py:26: in get_by_email
+    return await User.find_one(User.email == email)
+                               ^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <class 'app.models.user.User'>, item = 'email'
+
+    def __getattr__(self, item: str) -> Any:
+        """This is necessary to keep attribute access working for class attribute access."""
+        private_attributes = self.__dict__.get('__private_attributes__')
+        if private_attributes and item in private_attributes:
+            return private_attributes[item]
+>       raise AttributeError(item)
+E       AttributeError: email
+
+.venv/lib/python3.14/site-packages/pydantic/_internal/_model_construction.py:290: AttributeError
+=============================== warnings summary ===============================
+app/schemas/user.py:72
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/schemas/user.py:72: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class UserResponse(UserBase):
+
+app/models/user.py:7
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/models/user.py:7: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class User(Document):
+
+app/models/role.py:5
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/models/role.py:5: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class Role(Document):
+
+app/models/audit_log.py:6
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/models/audit_log.py:6: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class AuditLog(Document):
+
+app/models/company.py:6
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/models/company.py:6: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class Company(Document):
+
+app/schemas/platform.py:13
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/schemas/platform.py:13: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class RoleResponse(BaseModel):
+
+app/schemas/platform.py:38
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/schemas/platform.py:38: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class CompanyResponse(BaseModel):
+
+app/schemas/platform.py:80
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/schemas/platform.py:80: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class JobResponse(BaseModel):
+
+app/schemas/platform.py:116
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/schemas/platform.py:116: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class CandidateResponse(BaseModel):
+
+app/schemas/platform.py:142
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/schemas/platform.py:142: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ApplicationResponse(BaseModel):
+
+app/schemas/platform.py:168
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/schemas/platform.py:168: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class LeadResponse(BaseModel):
+
+app/schemas/platform.py:192
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/schemas/platform.py:192: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class InvoiceResponse(BaseModel):
+
+app/schemas/platform.py:210
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/schemas/platform.py:210: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class PaymentResponse(BaseModel):
+
+app/schemas/platform.py:230
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/schemas/platform.py:230: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class CMSPageResponse(BaseModel):
+
+app/schemas/platform.py:246
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/schemas/platform.py:246: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class CMSBlogResponse(BaseModel):
+
+app/schemas/platform.py:262
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/schemas/platform.py:262: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class CMSServiceResponse(BaseModel):
+
+app/schemas/platform.py:275
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/schemas/platform.py:275: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class AuditLogResponse(BaseModel):
+
+app/schemas/platform.py:287
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/schemas/platform.py:287: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class NotificationResponse(BaseModel):
+
+app/schemas/platform.py:330
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/schemas/platform.py:330: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class WorkflowRuleResponse(BaseModel):
+
+app/schemas/platform.py:350
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/schemas/platform.py:350: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ActivityLogResponse(BaseModel):
+
+app/schemas/platform.py:369
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/schemas/platform.py:369: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class CandidateTimelineResponse(BaseModel):
+
+app/models/job.py:6
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/models/job.py:6: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class Job(Document):
+
+app/models/candidate.py:6
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/models/candidate.py:6: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class Candidate(Document):
+
+app/models/application.py:6
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/models/application.py:6: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class Application(Document):
+
+app/models/lead.py:6
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/models/lead.py:6: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class Lead(Document):
+
+app/models/invoice.py:5
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/models/invoice.py:5: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class Invoice(Document):
+
+app/models/payment.py:6
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/models/payment.py:6: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class Payment(Document):
+
+app/models/cms.py:6
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/models/cms.py:6: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class CMSPage(Document):
+
+app/models/cms.py:26
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/models/cms.py:26: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class CMSBlog(Document):
+
+app/models/cms.py:48
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/models/cms.py:48: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class CMSService(Document):
+
+app/models/notification.py:5
+  /Users/arnabsenapati/Project_For_Prem_Backend/app/models/notification.py:5: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class Notification(Document):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_auth.py::test_user_registration_and_login_flow - AttributeE...
+=================== 1 failed, 1 passed, 31 warnings in 2.66s ===================

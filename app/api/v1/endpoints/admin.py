@@ -53,32 +53,60 @@ router = APIRouter()
 # 0. ORIGINAL ADMIN: DASHBOARD KPIs, AUDIT LOGS, CSV EXPORT
 # ──────────────────────────────────────────────────────────────────────────────
 
-@router.get("/dashboard/kpi", response_model=DashboardKPIs)
+@router.get("/dashboard/kpi")
 async def get_dashboard_kpis(
     current_user: User = Depends(RoleChecker(["SUPER_ADMIN", "ADMIN"]))
 ) -> Any:
     """
-    Fetch global KPI metrics for the CoreVita Admin Dashboard.
-    Performs high-performance counts and aggregates payment revenue directly from MongoDB.
+    Fetch all KPI metrics for the CoreVita Admin Dashboard.
+    Returns counts for every module required by the admin panel.
     """
-    total_users = await User.count()
-    total_jobs = await Job.count()
-    total_leads = await Lead.count()
-    new_leads_count = await Lead.find(Lead.status == "NEW").count()
-    open_jobs_count = await Job.find(Job.status == "OPEN").count()
-    revenue_pipeline = [
-        {"$match": {"status": "PAID"}},
-        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
-    ]
-    revenue_agg = await Invoice.aggregate(revenue_pipeline).to_list()
-    total_revenue = float(revenue_agg[0]["total"]) if revenue_agg else 0.0
+    from app.models.news import News
+    from app.models.team_member import TeamMember
+    from app.models.testimonial import Testimonial
+    from app.models.client_logo import ClientLogo
+    from app.models.enquiry import Enquiry
+    from app.models.caregiver_enquiry import CaregiverEnquiry
+
+    total_enquiries = await Enquiry.count()
+    total_caregiver_enquiries = await CaregiverEnquiry.count()
+    total_applications = await Application.count()
+    active_jobs = await Job.find(Job.status == "OPEN").count()
+    published_news = await News.find(News.is_published == True).count()
+    team_members = await TeamMember.find(TeamMember.is_active == True).count()
+    total_testimonials = await Testimonial.count()
+    total_client_logos = await ClientLogo.find(ClientLogo.is_active == True).count()
+    admin_users = await User.find({"role": {"$in": ["SUPER_ADMIN", "ADMIN", "EDITOR"]}}).count()
+
+    # Recent enquiries (last 5)
+    recent_enquiries = await Enquiry.find_all().sort("-created_at").limit(5).to_list()
+    # Recent applications (last 5)
+    recent_applications = await Application.find_all().sort("-created_at").limit(5).to_list()
+    # Recent activity
+    recent_activity = await ActivityLog.find_all().sort("-created_at").limit(8).to_list()
+
     return {
-        "total_users": total_users,
-        "total_jobs": total_jobs,
-        "total_revenue": total_revenue,
-        "total_leads": total_leads,
-        "new_leads_count": new_leads_count,
-        "open_jobs_count": open_jobs_count,
+        "total_enquiries": total_enquiries,
+        "total_caregiver_enquiries": total_caregiver_enquiries,
+        "total_applications": total_applications,
+        "active_jobs": active_jobs,
+        "published_news": published_news,
+        "team_members": team_members,
+        "total_testimonials": total_testimonials,
+        "total_client_logos": total_client_logos,
+        "admin_users": admin_users,
+        "recent_enquiries": [
+            {"id": str(e.id), "name": e.name, "email": str(e.email), "service": e.service_interest, "status": e.status, "created_at": e.created_at.isoformat()}
+            for e in recent_enquiries
+        ],
+        "recent_applications": [
+            {"id": str(a.id), "job_id": a.job_id, "candidate_id": a.candidate_id, "stage": a.current_stage, "created_at": a.created_at.isoformat()}
+            for a in recent_applications
+        ],
+        "recent_activity": [
+            {"id": str(a.id), "event_type": a.event_type, "title": a.title, "created_at": a.created_at.isoformat()}
+            for a in recent_activity
+        ],
     }
 
 

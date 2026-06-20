@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from app.api.v1.endpoints import (
-    auth, user, company, job, candidate, crm, billing, cms, admin, health
+    auth, user, company, job, candidate, crm, billing, cms, admin, health, content, upload
 )
 
 api_router = APIRouter()
@@ -16,3 +16,7 @@ api_router.include_router(billing.router, prefix="/billing", tags=["Billing & In
 api_router.include_router(cms.router, prefix="/cms", tags=["CMS Content"])
 api_router.include_router(admin.router, prefix="/admin", tags=["Admin Control Panel"])
 api_router.include_router(health.router, prefix="/health", tags=["System Health"])
+# New CMS content endpoints (News, Team, Testimonials, Logos, Enquiries, Caregiver Enquiries)
+api_router.include_router(content.router, prefix="/content", tags=["Content Management"])
+# Cloudinary image upload
+api_router.include_router(upload.router, prefix="/media", tags=["Media Upload"])

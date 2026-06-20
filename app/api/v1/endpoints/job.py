@@ -20,13 +20,15 @@ async def create_job(
     Create a new job listing for a company.
     Requires 'manage_jobs' permission.
     """
-    # Verify company exists
-    company = await Company.get(job_in.company_id)
-    if not company:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Company with ID {job_in.company_id} does not exist."
-        )
+    # Verify company exists if provided
+    company = None
+    if job_in.company_id:
+        company = await Company.get(job_in.company_id)
+        if not company:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Company with ID {job_in.company_id} does not exist."
+            )
         
     # Verify recruiter exists if provided
     if job_in.recruiter_id:
@@ -54,7 +56,7 @@ async def create_job(
     
     await log_action(
         action="CREATE_JOB",
-        details=f"Created job listing: {job.title} for {company.name}",
+        details=f"Created job listing: {job.title}" + (f" for {company.name}" if company else ""),
         user=current_user,
         request=request
     )

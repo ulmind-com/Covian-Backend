@@ -6,7 +6,7 @@ from pydantic import Field
 class Job(Document):
     title: str
     description: str
-    company_id: Indexed(str)  # Reference to Company id
+    company_id: Optional[str] = None  # Reference to Company id (optional)
     recruiter_id: Optional[str] = None  # Reference to User id
     status: Indexed(str) = "OPEN"  # OPEN, CLOSED, DRAFT
     pipeline_stages: List[str] = Field(

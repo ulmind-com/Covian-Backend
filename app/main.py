@@ -33,12 +33,23 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     lifespan=lifespan,
+    redirect_slashes=False,
 )
 
-# Set up CORS middleware to allow all origins for now to fix deployment issues
+# CORS — wildcard '*' is incompatible with allow_credentials=True,
+# so we list allowed origins explicitly.
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3000",
+    "https://corevita.in",
+    "https://www.corevita.in",
+    "https://covian.in",
+    "https://www.covian.in",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

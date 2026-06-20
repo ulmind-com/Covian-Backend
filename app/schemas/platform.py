@@ -53,7 +53,7 @@ class CompanyResponse(BaseModel):
 class JobCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=100)
     description: str
-    company_id: PyObjectId = Field(..., description="ID of the company hosting the job")
+    company_id: Optional[str] = Field(None, description="Optional ID of the company hosting the job")
     recruiter_id: Optional[str] = Field(None, description="Optional ID of the assigned Recruiter")
     status: str = Field("OPEN", description="Job status (OPEN, CLOSED, DRAFT)")
     pipeline_stages: List[str] = Field(
@@ -81,7 +81,7 @@ class JobResponse(BaseModel):
     id: PyObjectId
     title: str
     description: str
-    company_id: PyObjectId
+    company_id: Optional[str] = None
     recruiter_id: Optional[str]
     status: str
     pipeline_stages: List[str]
@@ -134,6 +134,14 @@ class ApplicationCreate(BaseModel):
     candidate_id: PyObjectId
     current_stage: str = "Applied"
     notes: List[str] = Field(default_factory=list)
+
+class PublicApplicationCreate(BaseModel):
+    job_id: str = Field(..., description="ID of the job being applied for")
+    name: str = Field(..., description="Candidate's full name")
+    email: EmailStr = Field(..., description="Candidate's email address")
+    phone: str = Field(..., description="Candidate's phone number")
+    skills: List[str] = Field(default_factory=list, description="Candidate's core skills")
+    cv_url: str = Field(..., description="URL of the uploaded CV/Resume")
 
 class ApplicationUpdate(BaseModel):
     current_stage: str

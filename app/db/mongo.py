@@ -15,10 +15,17 @@ from app.models.payment import Payment
 from app.models.audit_log import AuditLog
 from app.models.notification import Notification
 from app.models.cms import CMSPage, CMSBlog, CMSService
-# New intelligence models
+# Intelligence models
 from app.models.activity_log import ActivityLog
 from app.models.workflow import WorkflowRule
 from app.models.candidate_timeline import CandidateTimeline
+# New CMS content models
+from app.models.news import News
+from app.models.team_member import TeamMember
+from app.models.testimonial import Testimonial
+from app.models.client_logo import ClientLogo
+from app.models.enquiry import Enquiry
+from app.models.caregiver_enquiry import CaregiverEnquiry
 
 # Instantiate global Motor Client
 client = AsyncIOMotorClient(settings.MONGODB_URL)
@@ -45,9 +52,16 @@ async def init_db():
             CMSPage,
             CMSBlog,
             CMSService,
-            # New intelligence collections
+            # Intelligence collections
             ActivityLog,
             WorkflowRule,
             CandidateTimeline,
+            # New CMS content collections
+            News,
+            TeamMember,
+            Testimonial,
+            ClientLogo,
+            Enquiry,
+            CaregiverEnquiry,
         ]
     )

@@ -8,7 +8,7 @@ from app.models.job import Job
 from app.models.user import User
 from app.schemas.platform import (
     CandidateCreate, CandidateUpdate, CandidateResponse,
-    ApplicationCreate, ApplicationUpdate, ApplicationResponse,
+    ApplicationCreate, ApplicationUpdate, ApplicationResponse, PublicApplicationCreate,
     CandidateTimelineResponse,
 )
 from app.utils.audit import log_action
@@ -80,90 +80,121 @@ async def list_candidates(
     return await Candidate.find(query).skip(skip).limit(limit).to_list()
 
 
-@router.get("/{candidate_id}", response_model=CandidateResponse)
-async def get_candidate_by_id(
-    candidate_id: str,
-    current_user: User = Depends(RoleChecker(["SUPER_ADMIN", "ADMIN", "RECRUITER"]))
-) -> Any:
-    """
-    Retrieve candidate profile by ID.
-    """
-    candidate = await Candidate.get(candidate_id)
-    if not candidate:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Candidate profile not found",
-        )
-    return candidate
-
-
-@router.put("/{candidate_id}", response_model=CandidateResponse)
-async def update_candidate(
-    candidate_id: str,
-    candidate_in: CandidateUpdate,
-    request: Request,
-    current_user: User = Depends(PermissionChecker("manage_candidates"))
-) -> Any:
-    """
-    Modify candidate profile details or skills.
-    Requires 'manage_candidates' permission.
-    """
-    candidate = await Candidate.get(candidate_id)
-    if not candidate:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Candidate profile not found",
-        )
-        
-    update_data = candidate_in.model_dump(exclude_unset=True)
-    if "skills" in update_data:
-        update_data["skills"] = [s.strip() for s in update_data["skills"]]
-        
-    for field, value in update_data.items():
-        setattr(candidate, field, value)
-        
-    await candidate.save()
-    
-    await log_action(
-        action="UPDATE_CANDIDATE",
-        details=f"Updated candidate: {candidate.name} (id: {candidate.id})",
-        user=current_user,
-        request=request
-    )
-    return candidate
-
-
-@router.delete("/{candidate_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
-async def delete_candidate(
-    candidate_id: str,
-    request: Request,
-    current_user: User = Depends(PermissionChecker("manage_candidates"))
-) -> None:
-    """
-    Delete a candidate profile.
-    Requires 'manage_candidates' permission.
-    """
-    candidate = await Candidate.get(candidate_id)
-    if not candidate:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Candidate profile not found",
-        )
-    name = candidate.name
-    await candidate.delete()
-    
-    await log_action(
-        action="DELETE_CANDIDATE",
-        details=f"Deleted candidate profile: {name} (id: {candidate_id})",
-        user=current_user,
-        request=request
-    )
-    return None
-
-
 # ==============================================================================
 # APPLICATIONS MANAGEMENT
 # ==============================================================================
+
+@router.post("/public-apply", response_model=ApplicationResponse, status_code=status.HTTP_201_CREATED)
+async def public_apply(
+    app_in: PublicApplicationCreate,
+    request: Request
+) -> Any:
+    """
+    Public endpoint for candidates to apply to a job directly from the frontend.
+    Does not require authentication.
+    """
+    # Verify job exists
+    job = await Job.get(app_in.job_id)
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Job ID {app_in.job_id} does not exist."
+        )
+
+    # Find existing candidate by email or create new
+    candidate = await Candidate.find_one(Candidate.email == app_in.email)
+    if not candidate:
+        candidate = Candidate(
+            name=app_in.name,
+            email=app_in.email,
+            phone=app_in.phone,
+            skills=app_in.skills,
+            cv_url=app_in.cv_url,
+            status="AVAILABLE"
+        )
+        await candidate.insert()
+    else:
+        # Update existing candidate details
+        candidate.name = app_in.name
+        if app_in.phone:
+            candidate.phone = app_in.phone
+        if app_in.cv_url:
+            candidate.cv_url = app_in.cv_url
+        if app_in.skills:
+            # Merge unique skills
+            candidate.skills = list(set(candidate.skills + app_in.skills))
+        await candidate.save()
+
+    # Check if application already exists for this job
+    existing_app = await Application.find_one(
+        Application.job_id == app_in.job_id,
+        Application.candidate_id == str(candidate.id)
+    )
+    if existing_app:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You have already applied for this position."
+        )
+
+    application = Application(
+        job_id=app_in.job_id,
+        candidate_id=str(candidate.id),
+        current_stage="Applied",
+        notes=[],
+    )
+    await application.insert()
+    
+    # Enqueue background email notification to candidate
+    from app.utils.background import enqueue_email_notification
+    await enqueue_email_notification(
+        recipient_email=candidate.email,
+        title="Application Received - CoreVita Advisory",
+        message=f"Hello {candidate.name},\n\nWe have received your application for the position: {job.title}. Our team is reviewing it and we will be in touch soon!"
+    )
+
+    # Get a dummy user or just None for actor
+    from app.models.user import User
+    system_user = await User.find_one({"email": "admin@corevita.com"}) # Use any admin or none
+
+    # Log to candidate timeline
+    await add_candidate_timeline_event(
+        candidate_id=str(candidate.id),
+        event_type="APPLICATION_CREATED",
+        title=f"Applied to {job.title}",
+        description=f"Application submitted for job '{job.title}'. Initial stage: {application.current_stage}.",
+        actor=system_user,
+        related_job_id=app_in.job_id,
+        related_application_id=str(application.id),
+    )
+
+    # Log to activity feed
+    await log_activity(
+        event_type="APPLICATION_CREATED",
+        entity_type="application",
+        entity_id=str(application.id),
+        title=f"New public application: {candidate.name} → {job.title}",
+        description=f"Candidate {candidate.name} applied to job '{job.title}' via website.",
+        actor=system_user,
+    )
+
+    return application
+
+@router.get("/applications", response_model=List[ApplicationResponse])
+async def list_applications(
+    skip: int = 0,
+    limit: int = 200,
+    job_id: str = None,
+    current_user: User = Depends(RoleChecker(["SUPER_ADMIN", "ADMIN", "RECRUITER"]))
+) -> Any:
+    """
+    List all applications. Can be filtered by job_id.
+    """
+    query = {}
+    if job_id:
+        query["job_id"] = job_id
+        
+    apps = await Application.find(query).sort("-created_at").skip(skip).limit(limit).to_list()
+    return apps
 
 @router.post("/applications", response_model=ApplicationResponse, status_code=status.HTTP_201_CREATED)
 async def create_application(
@@ -388,3 +419,84 @@ async def get_candidate_timeline(
     return await CandidateTimeline.find(
         CandidateTimeline.candidate_id == candidate_id
     ).sort("-created_at").limit(limit).to_list()
+@router.get("/{candidate_id}", response_model=CandidateResponse)
+async def get_candidate_by_id(
+    candidate_id: str,
+    current_user: User = Depends(RoleChecker(["SUPER_ADMIN", "ADMIN", "RECRUITER"]))
+) -> Any:
+    """
+    Retrieve candidate profile by ID.
+    """
+    candidate = await Candidate.get(candidate_id)
+    if not candidate:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Candidate profile not found",
+        )
+    return candidate
+
+
+@router.put("/{candidate_id}", response_model=CandidateResponse)
+async def update_candidate(
+    candidate_id: str,
+    candidate_in: CandidateUpdate,
+    request: Request,
+    current_user: User = Depends(PermissionChecker("manage_candidates"))
+) -> Any:
+    """
+    Modify candidate profile details or skills.
+    Requires 'manage_candidates' permission.
+    """
+    candidate = await Candidate.get(candidate_id)
+    if not candidate:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Candidate profile not found",
+        )
+        
+    update_data = candidate_in.model_dump(exclude_unset=True)
+    if "skills" in update_data:
+        update_data["skills"] = [s.strip() for s in update_data["skills"]]
+        
+    for field, value in update_data.items():
+        setattr(candidate, field, value)
+        
+    await candidate.save()
+    
+    await log_action(
+        action="UPDATE_CANDIDATE",
+        details=f"Updated candidate: {candidate.name} (id: {candidate.id})",
+        user=current_user,
+        request=request
+    )
+    return candidate
+
+
+@router.delete("/{candidate_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
+async def delete_candidate(
+    candidate_id: str,
+    request: Request,
+    current_user: User = Depends(PermissionChecker("manage_candidates"))
+) -> None:
+    """
+    Delete a candidate profile.
+    Requires 'manage_candidates' permission.
+    """
+    candidate = await Candidate.get(candidate_id)
+    if not candidate:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Candidate profile not found",
+        )
+    name = candidate.name
+    await candidate.delete()
+    
+    await log_action(
+        action="DELETE_CANDIDATE",
+        details=f"Deleted candidate profile: {name} (id: {candidate_id})",
+        user=current_user,
+        request=request
+    )
+    return None
+
+
