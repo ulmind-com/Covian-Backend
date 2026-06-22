@@ -64,6 +64,9 @@ class JobCreate(BaseModel):
     industry: Optional[str] = None
     job_type: Optional[str] = None
     experience_level: Optional[str] = None
+    key_responsibilities: List[str] = Field(default_factory=list)
+    requirements: List[str] = Field(default_factory=list)
+    perks_and_benefits: List[str] = Field(default_factory=list)
 
 class JobUpdate(BaseModel):
     title: Optional[str] = None
@@ -76,6 +79,9 @@ class JobUpdate(BaseModel):
     industry: Optional[str] = None
     job_type: Optional[str] = None
     experience_level: Optional[str] = None
+    key_responsibilities: Optional[List[str]] = None
+    requirements: Optional[List[str]] = None
+    perks_and_benefits: Optional[List[str]] = None
 
 class JobResponse(BaseModel):
     id: PyObjectId
@@ -90,6 +96,9 @@ class JobResponse(BaseModel):
     industry: Optional[str]
     job_type: Optional[str]
     experience_level: Optional[str]
+    key_responsibilities: List[str] = []
+    requirements: List[str] = []
+    perks_and_benefits: List[str] = []
     created_at: datetime
 
     class Config:

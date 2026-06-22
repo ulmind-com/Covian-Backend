@@ -17,6 +17,9 @@ class Job(Document):
     industry: Optional[str] = None
     job_type: Optional[str] = Field(None, description="Full-time, Part-time, Contract")
     experience_level: Optional[str] = Field(None, description="Entry, Mid, Senior, Executive")
+    key_responsibilities: List[str] = Field(default_factory=list, description="List of key responsibilities")
+    requirements: List[str] = Field(default_factory=list, description="List of requirements")
+    perks_and_benefits: List[str] = Field(default_factory=list, description="List of perks and benefits")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Settings:
