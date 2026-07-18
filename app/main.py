@@ -41,12 +41,16 @@ app = FastAPI(
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:3001",
+    "http://localhost:8080",
     "http://127.0.0.1:3000",
+    "http://127.0.0.1:8080",
     "https://corevita.in",
     "https://www.corevita.in",
     "https://covian.in",
     "https://www.covian.in",
     "https://corevita-advisory.vercel.app",
+    "https://ulmind.com",
+    "https://www.ulmind.com",
 ]
 app.add_middleware(
     CORSMiddleware,

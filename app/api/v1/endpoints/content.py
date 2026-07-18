@@ -198,7 +198,11 @@ async def list_all_news(
 @router.get("/news/{slug}", tags=["Content - News"])
 async def get_news_by_slug(slug: str) -> Any:
     """Public: get a single news article by slug."""
+    # Try exact match first, then try with/without leading slash
     article = await News.find_one(News.slug == slug)
+    if not article:
+        alt_slug = f"/{slug}" if not slug.startswith("/") else slug.lstrip("/")
+        article = await News.find_one(News.slug == alt_slug)
     if not article:
         raise HTTPException(status_code=404, detail="News article not found.")
     return article
