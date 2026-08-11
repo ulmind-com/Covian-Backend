@@ -133,7 +133,13 @@ async def proxy_cv_download(
     user_id = verify_token(token, is_refresh=False)
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
-    user = await UserModel.get(user_id)
+
+    try:
+        from beanie import PydanticObjectId
+        user = await UserModel.get(PydanticObjectId(user_id))
+    except Exception:
+        user = None
+
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found or inactive")
     if user.role not in ["SUPER_ADMIN", "ADMIN", "RECRUITER"]:
@@ -161,42 +167,56 @@ async def proxy_cv_download(
     content_type = content_type_map.get(ext, 'application/pdf')
 
     try:
-        # Directly fetch the CV from the original Cloudinary URL.
-        # CVs are uploaded as resource_type="raw" with type="upload" (public),
-        # so the original URL is directly accessible.
+        # Try to directly fetch the CV from Cloudinary first
         async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
             response = await client.get(cv_url)
 
-            if response.status_code != 200:
-                # If direct fetch fails, try generating a signed URL as fallback
+            # If direct access is blocked (401/403), generate an authenticated URL
+            if response.status_code in (401, 403):
+                # Extract public_id and resource type from the Cloudinary URL
                 match = re.search(
                     r'res\.cloudinary\.com/[^/]+/(image|raw)/upload/(?:v\d+/)?(.+)$',
                     cv_url,
                 )
-                if match:
-                    resource_type = match.group(1)
-                    public_id_with_ext = match.group(2)
-                    if '.' in public_id_with_ext:
-                        public_id, file_format = public_id_with_ext.rsplit('.', 1)
-                    else:
-                        public_id = public_id_with_ext
-                        file_format = "pdf"
+                if not match:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Could not parse Cloudinary URL for authenticated download"
+                    )
 
-                    # Generate a signed Cloudinary URL
+                resource_type = match.group(1)
+                public_id_with_ext = match.group(2)
+                if '.' in public_id_with_ext:
+                    public_id, file_format = public_id_with_ext.rsplit('.', 1)
+                else:
+                    public_id = public_id_with_ext
+                    file_format = "pdf"
+
+                # Generate a signed private download URL
+                download_url = cloudinary.utils.private_download_url(
+                    public_id,
+                    file_format,
+                    resource_type=resource_type,
+                    attachment=False,
+                )
+                response = await client.get(download_url, follow_redirects=True)
+
+                # If private_download_url fails, try with cloudinary_url signed
+                if response.status_code != 200:
                     signed_url, _ = cloudinary.utils.cloudinary_url(
                         public_id,
                         resource_type=resource_type,
-                        type="upload",
+                        type="authenticated",
                         format=file_format,
                         sign_url=True,
                     )
-                    response = await client.get(signed_url)
+                    response = await client.get(signed_url, follow_redirects=True)
 
-                if response.status_code != 200:
-                    raise HTTPException(
-                        status_code=502,
-                        detail=f"Failed to fetch CV from storage (HTTP {response.status_code})"
-                    )
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"Failed to fetch CV from storage (HTTP {response.status_code})"
+                )
 
             return StreamingResponse(
                 iter([response.content]),
