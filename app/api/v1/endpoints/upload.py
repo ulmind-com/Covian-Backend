@@ -122,10 +122,9 @@ async def proxy_cv_download(
     token: str = Query(..., description="JWT access token for authentication"),
 ):
     """
-    Proxy endpoint that downloads a CV from Cloudinary using the private
-    download API and streams it to the client. This bypasses Cloudinary ACL
-    restrictions that block direct browser access to uploaded files.
-    Accepts token as query param so it can be used in iframes and direct links.
+    Proxy endpoint that downloads a CV from Cloudinary and streams it to the
+    client. Accepts token as query param so it can be used in iframes and
+    direct links (since iframes can't send Authorization headers).
     """
     from app.core.security import verify_token
     from app.models.user import User as UserModel
@@ -144,46 +143,60 @@ async def proxy_cv_download(
     import httpx
     from fastapi.responses import StreamingResponse
 
-    # Extract public_id and format from the Cloudinary URL
-    match = re.search(r'res\.cloudinary\.com/[^/]+/(image|raw)/upload/(?:v\d+/)?(.+)$', cv_url)
-    if not match:
+    # Validate it's a Cloudinary URL
+    if 'res.cloudinary.com' not in cv_url and 'cloudinary' not in cv_url:
         raise HTTPException(status_code=400, detail="Invalid Cloudinary URL format")
 
-    resource_type = match.group(1)
-    public_id_with_ext = match.group(2)
+    # Extract filename from URL for Content-Disposition header
+    url_path = cv_url.split('?')[0]  # Strip query params
+    filename = url_path.split('/')[-1] if '/' in url_path else 'resume.pdf'
 
-    # Split public_id and file extension
-    if '.' in public_id_with_ext:
-        public_id, file_format = public_id_with_ext.rsplit('.', 1)
-    else:
-        public_id = public_id_with_ext
-        file_format = "pdf"
+    # Determine content type from file extension
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else 'pdf'
+    content_type_map = {
+        'pdf': 'application/pdf',
+        'doc': 'application/msword',
+        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    }
+    content_type = content_type_map.get(ext, 'application/pdf')
 
     try:
-        # Generate a private download URL using Cloudinary's API
-        # This creates a server-signed URL that bypasses ACL restrictions
-        download_url = cloudinary.utils.private_download_url(
-            public_id,
-            file_format,
-            resource_type=resource_type,
-            type="upload",
-            attachment=True,
-        )
-
-        # Fetch the file from the private download URL
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(download_url, follow_redirects=True)
+        # Directly fetch the CV from the original Cloudinary URL.
+        # CVs are uploaded as resource_type="raw" with type="upload" (public),
+        # so the original URL is directly accessible.
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            response = await client.get(cv_url)
 
             if response.status_code != 200:
-                raise HTTPException(
-                    status_code=502,
-                    detail=f"Failed to fetch CV from storage (HTTP {response.status_code})"
+                # If direct fetch fails, try generating a signed URL as fallback
+                match = re.search(
+                    r'res\.cloudinary\.com/[^/]+/(image|raw)/upload/(?:v\d+/)?(.+)$',
+                    cv_url,
                 )
+                if match:
+                    resource_type = match.group(1)
+                    public_id_with_ext = match.group(2)
+                    if '.' in public_id_with_ext:
+                        public_id, file_format = public_id_with_ext.rsplit('.', 1)
+                    else:
+                        public_id = public_id_with_ext
+                        file_format = "pdf"
 
-            # Determine filename
-            filename = public_id_with_ext.split('/')[-1] if '/' in public_id_with_ext else public_id_with_ext
+                    # Generate a signed Cloudinary URL
+                    signed_url, _ = cloudinary.utils.cloudinary_url(
+                        public_id,
+                        resource_type=resource_type,
+                        type="upload",
+                        format=file_format,
+                        sign_url=True,
+                    )
+                    response = await client.get(signed_url)
 
-            content_type = response.headers.get("content-type", "application/pdf")
+                if response.status_code != 200:
+                    raise HTTPException(
+                        status_code=502,
+                        detail=f"Failed to fetch CV from storage (HTTP {response.status_code})"
+                    )
 
             return StreamingResponse(
                 iter([response.content]),
@@ -197,4 +210,6 @@ async def proxy_cv_download(
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to proxy CV download: {str(e)}")
