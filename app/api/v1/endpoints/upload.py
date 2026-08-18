@@ -107,10 +107,22 @@ async def upload_cv(
         raise HTTPException(status_code=400, detail="File too large. Maximum size is 10MB.")
 
     try:
+        # Preserve the original file extension in the public_id so the delivered
+        # URL ends in .pdf/.doc/.docx. Without this, raw uploads get an
+        # extension-less URL and the viewer can't tell what content type it is
+        # (which makes real PDFs fail to render with "Failed to load PDF document").
+        import os
+        import uuid
+        ext = os.path.splitext(file.filename or "")[1].lower()
+        if ext not in (".pdf", ".doc", ".docx"):
+            ext = ".pdf"
+        public_id = f"cv_{uuid.uuid4().hex}{ext}"
+
         result = cloudinary.uploader.upload(
             contents,
             folder="corevita_cvs",
             resource_type="raw",
+            public_id=public_id,
         )
         return {"url": result["secure_url"]}
     except Exception as e:
@@ -217,6 +229,18 @@ async def proxy_cv_download(
                     status_code=502,
                     detail=f"Failed to fetch CV from storage (HTTP {response.status_code})"
                 )
+
+            # Detect the real content type from the file's magic bytes instead of
+            # blindly trusting the extension. This prevents a DOCX (or any non-PDF
+            # file) from being served as application/pdf, which is what causes the
+            # browser PDF viewer to show "Failed to load PDF document".
+            head = response.content[:8]
+            if head.startswith(b"%PDF"):
+                content_type = "application/pdf"
+            elif head[:2] == b"PK":
+                content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            elif head[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
+                content_type = "application/msword"
 
             return StreamingResponse(
                 iter([response.content]),
