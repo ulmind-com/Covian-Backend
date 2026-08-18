@@ -45,6 +45,7 @@ from app.models.testimonial import Testimonial
 from app.models.client_logo import ClientLogo
 from app.models.enquiry import Enquiry
 from app.models.caregiver_enquiry import CaregiverEnquiry
+from app.models.gallery_photo import GalleryPhoto
 from app.models.user import User
 
 router = APIRouter()
@@ -163,6 +164,22 @@ class CaregiverEnquiryCreate(BaseModel):
 class CaregiverEnquiryUpdate(BaseModel):
     status: Optional[str] = None
     admin_notes: Optional[List[str]] = None
+
+class GalleryPhotoCreate(BaseModel):
+    image_url: str
+    label: str
+    description: Optional[str] = ""
+    link: Optional[str] = None
+    display_order: int = 0
+    is_active: bool = True
+
+class GalleryPhotoUpdate(BaseModel):
+    image_url: Optional[str] = None
+    label: Optional[str] = None
+    description: Optional[str] = None
+    link: Optional[str] = None
+    display_order: Optional[int] = None
+    is_active: Optional[bool] = None
 
 
 # ==============================================================================
@@ -577,3 +594,63 @@ async def export_caregiver_enquiries_csv(
         writer.writerow([str(e.id), e.name, e.email, e.phone or "", e.location or "", e.service_type or "", e.care_recipient or "", e.message, e.status, e.created_at.strftime("%Y-%m-%d %H:%M")])
     output.seek(0)
     return StreamingResponse(iter([output.getvalue()]), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=caregiver_enquiries.csv"})
+
+
+# ==============================================================================
+# GALLERY PHOTOS
+# ==============================================================================
+
+@router.get("/gallery", tags=["Content - Gallery"])
+async def list_gallery_photos(active_only: bool = True) -> Any:
+    """Public: list active gallery photos."""
+    if active_only:
+        return await GalleryPhoto.find(GalleryPhoto.is_active == True).sort("display_order").to_list()
+    return await GalleryPhoto.find_all().sort("display_order").to_list()
+
+
+@router.get("/gallery/all", tags=["Content - Gallery"])
+async def list_all_gallery_photos(
+    current_user: User = Depends(RoleChecker(["SUPER_ADMIN", "ADMIN"])),
+) -> Any:
+    """Admin: list all gallery photos."""
+    return await GalleryPhoto.find_all().sort("display_order").to_list()
+
+
+@router.post("/gallery", status_code=status.HTTP_201_CREATED, tags=["Content - Gallery"])
+async def create_gallery_photo(
+    data: GalleryPhotoCreate,
+    current_user: User = Depends(RoleChecker(["SUPER_ADMIN", "ADMIN"])),
+) -> Any:
+    """Admin: add a gallery photo."""
+    photo = GalleryPhoto(**data.model_dump())
+    await photo.insert()
+    return photo
+
+
+@router.put("/gallery/{photo_id}", tags=["Content - Gallery"])
+async def update_gallery_photo(
+    photo_id: str,
+    data: GalleryPhotoUpdate,
+    current_user: User = Depends(RoleChecker(["SUPER_ADMIN", "ADMIN"])),
+) -> Any:
+    """Admin: update a gallery photo."""
+    photo = await GalleryPhoto.get(photo_id)
+    if not photo:
+        raise HTTPException(status_code=404, detail="Gallery photo not found.")
+    for field, value in data.model_dump(exclude_unset=True).items():
+        setattr(photo, field, value)
+    photo.updated_at = datetime.now(timezone.utc)
+    await photo.save()
+    return photo
+
+
+@router.delete("/gallery/{photo_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response, tags=["Content - Gallery"])
+async def delete_gallery_photo(
+    photo_id: str,
+    current_user: User = Depends(RoleChecker(["SUPER_ADMIN", "ADMIN"])),
+) -> None:
+    """Admin: delete a gallery photo."""
+    photo = await GalleryPhoto.get(photo_id)
+    if not photo:
+        raise HTTPException(status_code=404, detail="Gallery photo not found.")
+    await photo.delete()

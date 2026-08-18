@@ -26,6 +26,7 @@ from app.models.testimonial import Testimonial
 from app.models.client_logo import ClientLogo
 from app.models.enquiry import Enquiry
 from app.models.caregiver_enquiry import CaregiverEnquiry
+from app.models.gallery_photo import GalleryPhoto
 
 # Instantiate global Motor Client
 client = AsyncIOMotorClient(settings.MONGODB_URL)
@@ -63,5 +64,6 @@ async def init_db():
             ClientLogo,
             Enquiry,
             CaregiverEnquiry,
+            GalleryPhoto,
         ]
     )
