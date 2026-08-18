@@ -28,6 +28,13 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Install LibreOffice (headless) so the backend can convert uploaded resumes
+# (doc/docx/ppt/pptx/xlsx) to PDF for viewing and download.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libreoffice-writer libreoffice-calc libreoffice-impress \
+    fonts-dejavu fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy the pre-compiled virtual environment from the builder
 COPY --from=builder /app/.venv /app/.venv
 

@@ -94,11 +94,13 @@ async def upload_cv(
     Returns the secure URL of the uploaded document.
     Allows PDF and basic document formats.
     """
-    allowed_types = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
-    if file.content_type not in allowed_types:
+    import os as _os
+    ALLOWED_EXTS = (".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xlsx")
+    file_ext = _os.path.splitext(file.filename or "")[1].lower()
+    if file_ext not in ALLOWED_EXTS:
         raise HTTPException(
             status_code=400,
-            detail=f"File type '{file.content_type}' not allowed. Use: PDF, DOC, DOCX"
+            detail="File type not allowed. Use: PDF, DOC, DOCX, PPT, PPTX, XLSX",
         )
 
     # Validate file size (max 10MB)
@@ -111,11 +113,8 @@ async def upload_cv(
         # URL ends in .pdf/.doc/.docx. Without this, raw uploads get an
         # extension-less URL and the viewer can't tell what content type it is
         # (which makes real PDFs fail to render with "Failed to load PDF document").
-        import os
         import uuid
-        ext = os.path.splitext(file.filename or "")[1].lower()
-        if ext not in (".pdf", ".doc", ".docx"):
-            ext = ".pdf"
+        ext = file_ext if file_ext in ALLOWED_EXTS else ".pdf"
         public_id = f"cv_{uuid.uuid4().hex}{ext}"
 
         result = cloudinary.uploader.upload(
@@ -257,3 +256,100 @@ async def proxy_cv_download(
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to proxy CV download: {str(e)}")
+
+
+async def _verify_cv_access(token: str):
+    """Validate the JWT (query param) and ensure the user may view CVs."""
+    from app.core.security import verify_token
+    from app.models.user import User as UserModel
+    from beanie import PydanticObjectId
+
+    user_id = verify_token(token, is_refresh=False)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    try:
+        user = await UserModel.get(PydanticObjectId(user_id))
+    except Exception:
+        user = None
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="User not found or inactive")
+    if user.role not in ["SUPER_ADMIN", "ADMIN", "RECRUITER"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+
+
+@router.get("/cv-pdf", tags=["Upload"])
+async def cv_as_pdf(
+    cv_url: str = Query(..., description="The original Cloudinary CV URL"),
+    token: str = Query(..., description="JWT access token for authentication"),
+    download: bool = Query(False, description="Force download instead of inline view"),
+):
+    """
+    Fetch a candidate CV from Cloudinary and return it as PDF. Files that are
+    already PDF are streamed as-is; Office formats (doc/docx/ppt/pptx/xlsx) are
+    converted to PDF with LibreOffice. Used for both inline viewing and the
+    "Download Resume" (as PDF) action, so any uploaded format is viewable.
+    """
+    import httpx
+    import os
+    import uuid
+    import tempfile
+    import asyncio
+    from fastapi.responses import StreamingResponse
+
+    await _verify_cv_access(token)
+
+    if 'cloudinary' not in cv_url:
+        raise HTTPException(status_code=400, detail="Invalid Cloudinary URL format")
+
+    # Download the original file
+    async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
+        resp = await client.get(cv_url)
+        if resp.status_code != 200:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Failed to fetch CV from storage (HTTP {resp.status_code})",
+            )
+    data = resp.content
+
+    # Already a PDF -> pass through untouched
+    if data[:4] == b"%PDF":
+        pdf_bytes = data
+    else:
+        # Convert to PDF via LibreOffice headless
+        src_ext = os.path.splitext(cv_url.split('?')[0])[1].lower() or ".docx"
+        if src_ext not in (".doc", ".docx", ".ppt", ".pptx", ".xlsx", ".xls"):
+            # Guess from magic bytes when the URL has no usable extension
+            src_ext = ".docx" if data[:2] == b"PK" else ".doc"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            in_path = os.path.join(tmp, f"cv{src_ext}")
+            profile = os.path.join(tmp, "profile")
+            with open(in_path, "wb") as f:
+                f.write(data)
+            proc = await asyncio.create_subprocess_exec(
+                "libreoffice", "--headless", "--norestore",
+                f"-env:UserInstallation=file://{profile}",
+                "--convert-to", "pdf", "--outdir", tmp, in_path,
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            )
+            try:
+                await asyncio.wait_for(proc.communicate(), timeout=90)
+            except asyncio.TimeoutError:
+                proc.kill()
+                raise HTTPException(status_code=504, detail="Conversion timed out")
+
+            out_path = os.path.join(tmp, "cv.pdf")
+            if not os.path.exists(out_path):
+                raise HTTPException(status_code=502, detail="Failed to convert resume to PDF")
+            with open(out_path, "rb") as f:
+                pdf_bytes = f.read()
+
+    disposition = "attachment" if download else "inline"
+    return StreamingResponse(
+        iter([pdf_bytes]),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'{disposition}; filename="resume.pdf"',
+            "Content-Length": str(len(pdf_bytes)),
+        },
+    )
