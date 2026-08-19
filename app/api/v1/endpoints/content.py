@@ -169,6 +169,7 @@ class GalleryPhotoCreate(BaseModel):
     image_url: str
     label: str
     description: Optional[str] = ""
+    font_size: int = 30
     link: Optional[str] = None
     display_order: int = 0
     is_active: bool = True
@@ -177,6 +178,7 @@ class GalleryPhotoUpdate(BaseModel):
     image_url: Optional[str] = None
     label: Optional[str] = None
     description: Optional[str] = None
+    font_size: Optional[int] = None
     link: Optional[str] = None
     display_order: Optional[int] = None
     is_active: Optional[bool] = None

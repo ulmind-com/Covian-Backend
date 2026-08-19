@@ -9,6 +9,7 @@ class GalleryPhoto(Document):
     image_url: str
     label: str
     description: Optional[str] = ""
+    font_size: int = 30
     link: Optional[str] = None
     display_order: int = 0
     is_active: bool = True
